@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Justlife Upsell Calculator</title>
+<style>
+  :root{
+    --teal-900:#0b3d3a;
+    --teal-700:#0f5f57;
+    --teal-500:#178a7c;
+    --mint-100:#eaf6f3;
+    --sky-500:#2b8fc4;
+    --sky-100:#e8f3fa;
+    --navy-900:#0e2a3d;
+    --paper:#fbfaf7;
+    --ink:#152524;
+    --ink-soft:#5b6b69;
+    --line:#dbe6e3;
+    --amber:#c97a2b;
+    --green-700:#1c7a4c;
+    --green-bg:#e9f8ef;
+    --white:#ffffff;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Segoe UI',Roboto,-apple-system,sans-serif;
+    padding-bottom:160px;
+  }
+  header{
+    background:linear-gradient(135deg,var(--teal-900),var(--teal-700));
+    color:var(--white);
+    padding:20px 18px 22px;
+  }
+  header h1{margin:0 0 4px;font-size:20px;letter-spacing:0.2px;}
+  header p{margin:0;font-size:13px;color:#cfe9e4;}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+  .log-btn{
+    background:rgba(255,255,255,0.14);
+    border:1px solid rgba(255,255,255,0.35);
+    color:var(--white);
+    padding:7px 12px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  main{padding:16px;max-width:640px;margin:0 auto;}
+
+  .service-toggle{display:flex;gap:10px;margin-bottom:16px;}
+  .toggle-chip{
+    flex:1;
+    background:var(--white);
+    border:2px solid var(--line);
+    border-radius:12px;
+    padding:14px 10px;
+    text-align:center;
+    font-size:14px;
+    font-weight:700;
+    color:var(--ink-soft);
+    cursor:pointer;
+    transition:border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .toggle-chip .sub{display:block;font-size:11px;font-weight:500;margin-top:2px;color:var(--ink-soft);}
+  .toggle-chip.active{border-color:var(--teal-700);background:var(--mint-100);color:var(--teal-900);}
+  .toggle-chip.active.ac{border-color:var(--sky-500);background:var(--sky-100);color:var(--navy-900);}
+
+  .empty-hint{
+    text-align:center;color:var(--ink-soft);font-size:13.5px;
+    padding:30px 20px;background:var(--white);border:1px dashed var(--line);border-radius:var(--radius);
+  }
+
+  .booking-ref-card{
+    background:var(--white);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px;margin-bottom:16px;
+  }
+  .booking-ref-card .lbl{font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--teal-700);margin-bottom:8px;}
+  .booking-ref-card input{
+    width:100%;padding:11px 12px;border:1px solid var(--line);
+    border-radius:10px;font-size:15px;font-weight:600;letter-spacing:0.5px;
+  }
+  .booking-ref-card input:focus{outline:2px solid var(--teal-500);border-color:var(--teal-500);}
+
+  .section-title{
+    font-size:15px;font-weight:800;color:var(--teal-900);margin:0 0 10px 2px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .section-title.ac{color:var(--navy-900);}
+  .section-title .dot{width:8px;height:8px;border-radius:50%;background:var(--teal-700);}
+  .section-title.ac .dot{background:var(--sky-500);}
+
+  .base-note{
+    background:var(--mint-100);border:1px solid var(--line);border-radius:var(--radius);
+    padding:11px 13px;font-size:12.5px;color:var(--teal-900);margin-bottom:14px;line-height:1.4;
+  }
+  .base-note.ac{background:var(--sky-100);color:var(--navy-900);}
+
+  .category{margin-bottom:16px;}
+  .category-title{
+    font-size:12px;font-weight:700;text-transform:uppercase;
+    letter-spacing:0.6px;color:var(--teal-700);margin:0 0 7px 2px;
+  }
+  .item-card{
+    background:var(--white);border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px 14px;display:flex;align-items:center;justify-content:space-between;
+    gap:10px;margin-bottom:8px;
+  }
+  .item-info{flex:1;min-width:0;}
+  .item-name{font-size:14px;font-weight:600;color:var(--ink);}
+  .item-sub{font-size:11px;color:var(--ink-soft);margin-top:1px;}
+  .item-price-row{display:flex;align-items:baseline;gap:8px;margin-top:3px;flex-wrap:wrap;}
+  .app-price{font-size:11.5px;color:var(--ink-soft);text-decoration:line-through;}
+  .new-price{
+    font-size:13px;font-weight:800;color:var(--teal-700);
+    background:var(--mint-100);padding:1px 7px;border-radius:6px;
+  }
+  .new-price.discounted{color:var(--green-700);background:var(--green-bg);}
+  .item-price{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .item-price.unset{color:var(--amber);font-weight:600;font-size:12px;margin-top:2px;}
+
+  .stepper{
+    display:flex;align-items:center;border:1px solid var(--line);
+    border-radius:10px;overflow:hidden;flex-shrink:0;
+  }
+  .stepper button{
+    width:32px;height:32px;border:none;background:var(--mint-100);
+    color:var(--teal-900);font-size:17px;font-weight:700;cursor:pointer;line-height:1;
+  }
+  .stepper.ac button{background:var(--sky-100);color:var(--navy-900);}
+
+  .select-toggle{
+    flex-shrink:0;
+    padding:9px 16px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:var(--white);
+    color:var(--ink-soft);
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .select-toggle:disabled{color:#b7c2c0;cursor:not-allowed;}
+  .select-toggle.ac.selected{
+    background:var(--sky-500);
+    border-color:var(--sky-500);
+    color:var(--white);
+  }
+  .stepper button:active{background:#d6ede8;}
+  .stepper .qty{width:30px;text-align:center;font-size:14.5px;font-weight:700;color:var(--ink);}
+
+  .discount-card{
+    background:var(--white);border:1px dashed var(--sky-500);border-radius:var(--radius);
+    padding:13px;margin-top:6px;
+  }
+  .discount-card h4{margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:0.6px;color:var(--navy-900);}
+  .discount-row{display:flex;gap:8px;margin-top:8px;}
+  .discount-row input[type=text]{
+    flex:1;padding:9px 11px;border:1px solid var(--line);
+    border-radius:10px;font-size:13.5px;text-transform:uppercase;
+  }
+  .discount-row input[type=text]:focus{outline:2px solid var(--sky-500);border-color:var(--sky-500);}
+  .apply-btn{
+    background:#134463;color:var(--white);border:none;
+    padding:0 16px;border-radius:10px;font-weight:700;font-size:12.5px;cursor:pointer;
+  }
+  .apply-btn:disabled{background:#a9b7bf;cursor:not-allowed;}
+  .discount-applied{
+    margin-top:9px;background:var(--green-bg);color:var(--green-700);
+    border-radius:10px;padding:7px 11px;font-size:12.5px;font-weight:600;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .remove-discount{background:none;border:none;color:var(--green-700);text-decoration:underline;font-size:11.5px;cursor:pointer;}
+  .discount-hint{font-size:11.5px;color:var(--ink-soft);margin-top:5px;}
+  .note-quote{font-size:11.5px;color:var(--ink-soft);font-style:italic;margin:6px 2px 0;}
+
+  .summary-bar{
+    position:fixed;bottom:0;left:0;right:0;
+    background:var(--teal-900);color:var(--white);
+    padding:12px 18px calc(12px + env(safe-area-inset-bottom));
+    box-shadow:0 -6px 18px rgba(0,0,0,0.18);
+  }
+  .summary-inner{max-width:640px;margin:0 auto;}
+  .summary-line{display:flex;justify-content:space-between;font-size:12.5px;color:#bfe0da;padding:1px 0;}
+  .summary-total-row{display:flex;justify-content:space-between;align-items:center;margin-top:3px;}
+  .summary-total-label{font-size:13px;color:#bcdcef;}
+  .summary-total{font-size:22px;font-weight:800;letter-spacing:0.3px;}
+  .clear-btn{
+    background:none;border:1px solid rgba(255,255,255,0.4);color:var(--white);
+    font-size:12px;padding:6px 12px;border-radius:999px;cursor:pointer;margin-left:10px;
+  }
+  .confirm-row{max-width:640px;margin:10px auto 0;}
+  .confirm-btn{
+    display:block;width:100%;background:var(--white);color:var(--teal-900);
+    border:none;padding:13px;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;
+  }
+  .confirm-btn:disabled{background:rgba(255,255,255,0.35);color:rgba(11,61,58,0.5);cursor:not-allowed;}
+  .confirm-error{color:#ffd7d0;font-size:12px;text-align:center;margin-top:6px;min-height:14px;}
+  .confirm-hint{color:#bcdcef;font-size:11.5px;text-align:center;margin-top:8px;line-height:1.4;}
+
+  .toast{
+    position:fixed;top:16px;left:50%;transform:translateX(-50%);
+    background:var(--teal-900);color:var(--white);
+    padding:12px 20px;border-radius:999px;font-size:13.5px;font-weight:600;
+    box-shadow:0 10px 30px rgba(0,0,0,0.25);z-index:60;max-width:88%;text-align:center;
+  }
+
+  .log-overlay{
+    position:fixed;inset:0;background:rgba(11,61,58,0.55);
+    display:flex;align-items:flex-end;justify-content:center;z-index:50;
+  }
+  .log-panel{
+    background:var(--paper);width:100%;max-width:640px;max-height:82vh;overflow-y:auto;
+    border-radius:20px 20px 0 0;padding:18px;
+  }
+  .log-panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .log-panel-header h3{margin:0;font-size:16px;color:var(--teal-900);}
+  .log-close-btn{background:none;border:none;font-size:22px;color:var(--ink-soft);cursor:pointer;line-height:1;}
+  .export-btn{
+    background:var(--teal-700);color:var(--white);border:none;
+    padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;
+  }
+  .log-entry{
+    background:var(--white);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;margin-bottom:8px;
+  }
+  .log-entry-top{display:flex;justify-content:space-between;font-size:13.5px;font-weight:700;color:var(--ink);}
+  .log-entry-type{
+    display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;
+    padding:2px 7px;border-radius:999px;background:var(--mint-100);color:var(--teal-900);margin-right:6px;
+  }
+  .log-entry-type.ac{background:var(--sky-100);color:var(--navy-900);}
+  .log-entry-date{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .log-entry-items{font-size:12.5px;color:var(--ink-soft);margin-top:6px;line-height:1.5;}
+  .log-entry-discount{font-size:12px;color:var(--green-700);margin-top:4px;font-weight:600;}
+  .log-empty{font-size:13px;color:var(--ink-soft);text-align:center;padding:20px;}
+  .log-note{font-size:11.5px;color:var(--ink-soft);text-align:center;margin-top:10px;}
+
+  .pin-overlay{
+    position:fixed;inset:0;background:rgba(11,61,58,0.55);
+    display:flex;align-items:center;justify-content:center;padding:20px;z-index:70;
+  }
+  .pin-box{
+    background:var(--white);border-radius:16px;padding:22px 20px;
+    max-width:320px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.25);
+  }
+  .pin-box h3{margin:0 0 6px;font-size:16px;color:var(--teal-900);}
+  .pin-box p{margin:0 0 14px;font-size:13px;color:var(--ink-soft);}
+  .pin-box input{
+    width:100%;padding:12px 14px;border:1px solid var(--line);
+    border-radius:10px;font-size:18px;letter-spacing:4px;text-align:center;margin-bottom:10px;
+  }
+  .pin-box input:focus{outline:2px solid var(--teal-500);border-color:var(--teal-500);}
+  .pin-error{color:#c0392b;font-size:12.5px;margin:-4px 0 10px;min-height:16px;}
+  .pin-actions{display:flex;gap:8px;}
+  .pin-actions button{flex:1;padding:11px;border-radius:10px;font-size:14px;font-weight:700;border:none;cursor:pointer;}
+  .pin-cancel{background:var(--mint-100);color:var(--teal-900);}
+  .pin-submit{background:var(--teal-700);color:var(--white);}
+
+  .admin-banner{
+    background:#fdf1e2;border:1px solid #f0d3a8;color:#8a5518;
+    border-radius:var(--radius);padding:12px 14px;font-size:12.5px;margin-bottom:14px;line-height:1.45;
+  }
+  .change-pin-card{
+    background:var(--white);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px;margin-bottom:16px;
+  }
+  .change-pin-card .lbl{font-size:14px;font-weight:600;margin-bottom:2px;}
+  .change-pin-card .sub{font-size:12px;color:var(--ink-soft);margin-bottom:10px;}
+  .change-pin-card input{
+    width:100%;padding:10px 12px;border:1px solid var(--line);
+    border-radius:8px;font-size:14px;letter-spacing:2px;
+  }
+  .edit-price-cols{display:flex;gap:6px;flex-shrink:0;}
+  .edit-price-col{display:flex;flex-direction:column;align-items:center;}
+  .edit-price-col label{font-size:9px;text-transform:uppercase;letter-spacing:0.4px;color:var(--ink-soft);margin-bottom:3px;}
+  .edit-price-input{
+    width:64px;padding:7px 6px;border:1px solid var(--line);
+    border-radius:8px;font-size:13px;text-align:right;
+  }
+  .edit-price-input.new-input{
+    border-color:var(--teal-500);background:var(--mint-100);font-weight:700;color:var(--teal-900);
+  }
+  .edit-price-input.ac-input{
+    border-color:var(--sky-500);background:var(--sky-100);font-weight:700;color:var(--navy-900);
+  }
+  .save-btn{
+    display:block;width:100%;background:var(--teal-700);color:var(--white);
+    border:none;padding:13px;border-radius:12px;font-size:15px;font-weight:700;
+    cursor:pointer;margin-top:6px;
+  }
+  .save-btn:disabled{background:#a9c8c3;cursor:not-allowed;}
+  .save-status{text-align:center;font-size:12.5px;color:var(--teal-700);margin-top:8px;min-height:16px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="topbar">
+    <div>
+      <h1>Justlife Upsell Calculator</h1>
+      <p>Pick a service type, select items, then confirm</p>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="log-btn" id="editBtn">Edit Prices</button>
+      <button class="log-btn" id="logBtn">Log</button>
+    </div>
+  </div>
+</header>
+
+<div id="pinOverlay" class="pin-overlay" style="display:none;">
+  <div class="pin-box">
+    <h3>Manager Access</h3>
+    <p>Enter the PIN to edit prices.</p>
+    <input type="password" id="pinInput" inputmode="numeric" placeholder="••••" maxlength="12" autofocus>
+    <div class="pin-error" id="pinError"></div>
+    <div class="pin-actions">
+      <button class="pin-cancel" id="pinCancelBtn">Cancel</button>
+      <button class="pin-submit" id="pinSubmitBtn">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="service-toggle">
+    <div class="toggle-chip furniture" id="toggleFurniture">
+      Furniture Cleaning
+      <span class="sub">Sofa, curtain, carpet, mattress, outdoor</span>
+    </div>
+    <div class="toggle-chip ac" id="toggleAC">
+      AC Cleaning
+      <span class="sub">Filter, duct, coil, split AC</span>
+    </div>
+  </div>
+
+  <div id="content"><div class="empty-hint">Loading pricing…</div></div>
+</main>
+
+<div class="summary-bar" id="summaryBar" style="display:none;">
+  <div class="summary-inner">
+    <div class="summary-line" id="subtotalLine" style="display:none;">
+      <span>Subtotal</span><span id="subtotalAmount">AED 0</span>
+    </div>
+    <div class="summary-line" id="discountLine" style="display:none;color:#8de3ac;">
+      <span id="discountLabel">Discount</span><span id="discountAmount">– AED 0</span>
+    </div>
+    <div class="summary-total-row">
+      <div class="summary-total-label"><span id="itemCount">0</span> items <button class="clear-btn" id="clearBtn">Clear</button></div>
+      <div class="summary-total" id="totalAmount">AED 0</div>
+    </div>
+  </div>
+  <div class="confirm-row">
+    <button class="confirm-btn" id="confirmBtn">Confirm & Save Entry</button>
+    <div class="confirm-error" id="confirmError"></div>
+    <div class="confirm-hint">Only confirm once the customer has agreed to the upsell.</div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+// BACKEND — this calculator reads/writes a shared Google Sheet through
+// an Apps Script Web App. If you ever redeploy that script, paste the
+// new /exec URL below and re-upload this file.
+// =====================================================================
+const API_URL = 'https://script.google.com/macros/s/AKfycbyL2q3M0GLAKLeVH6Ee2iiwS3DGWp81uo8cUyge5FLMI1mb4RYYFK4b0cB16Ei_VdabDQ/exec';
+
+// ---------- Fixed catalogs (item names/ids/categories live here; prices come from the shared Sheet) ----------
+const FURNITURE_CATALOG = [
+  {
+    category: 'Sofa Cleaning',
+    items: [
+      { id:'sofa_single',        name:'Single Seat Sofa',              appPrice:null, newPrice:null },
+      { id:'sofa_3',              name:'3-Seater Sofa',                 appPrice:null, newPrice:null },
+      { id:'sofa_3_lshape',       name:'L-Shaped 3-Seater Sofa',        appPrice:null, newPrice:null },
+      { id:'sofa_3_bed',          name:'3-Seater Sofa Bed',             appPrice:null, newPrice:null },
+      { id:'sofa_3_bed_lshape',   name:'L-Shaped 3-Seater Sofa Bed',    appPrice:null, newPrice:null },
+      { id:'sofa_4',              name:'4-Seater Sofa',                 appPrice:null, newPrice:null },
+      { id:'sofa_4_lshape',       name:'L-Shaped 4-Seater Sofa',        appPrice:null, newPrice:null },
+      { id:'sofa_5',              name:'5-Seater Sofa',                 appPrice:null, newPrice:null },
+      { id:'sofa_5_lshape',       name:'L-Shaped 5-Seater Sofa',        appPrice:null, newPrice:null },
+      { id:'sofa_7',              name:'7-Seater Sofa',                 appPrice:null, newPrice:null },
+      { id:'dining_chair',        name:'Dining Chair',                  appPrice:null, newPrice:null },
+      { id:'recliner',            name:'Recliner',                      appPrice:null, newPrice:null },
+    ]
+  },
+  {
+    category:'Curtain Cleaning',
+    items:[
+      { id:'curtain_small',       name:'Small Curtain',                 appPrice:null, newPrice:null },
+      { id:'curtain_medium',      name:'Medium Curtain',                appPrice:null, newPrice:null },
+      { id:'curtain_large',       name:'Large Curtain',                 appPrice:null, newPrice:null },
+      { id:'curtain_xlarge',      name:'X-Large Curtain',               appPrice:null, newPrice:null },
+    ]
+  },
+  {
+    category:'Carpet Cleaning',
+    items:[
+      { id:'carpet_small',        name:'Small Carpet (up to ~5m)',      appPrice:null, newPrice:null },
+      { id:'carpet_medium',       name:'Medium Carpet',                 appPrice:null, newPrice:null },
+      { id:'carpet_large',        name:'Large Carpet',                  appPrice:null, newPrice:null },
+      { id:'carpet_xlarge',       name:'X-Large Carpet (up to ~16m)',   appPrice:null, newPrice:null },
+    ]
+  },
+  {
+    category:'Mattress Cleaning',
+    items:[
+      { id:'mattress_single',     name:'Single Mattress',               appPrice:null, newPrice:null },
+      { id:'mattress_baby_crib',  name:'Baby Crib Mattress',            appPrice:null, newPrice:null },
+      { id:'mattress_queen',      name:'Queen-Size Mattress',           appPrice:null, newPrice:null },
+      { id:'mattress_king',       name:'King-Size Mattress',            appPrice:null, newPrice:null },
+    ]
+  },
+  {
+    category:'Outdoor Furniture',
+    items:[
+      { id:'outdoor_swing',       name:'Swing',                         appPrice:null, newPrice:null },
+      { id:'outdoor_sun_lounger', name:'Sun Lounger',                   appPrice:null, newPrice:null },
+    ]
+  }
+];
+
+const AC_CATALOG = [
+  {
+    category: 'General AC Services',
+    items: [
+      { id:'ac_split_regular', name:'Split AC Regular Cleaning', sub:'Filters, vents, water tray, drain flush — per unit', price:null, stepper:true },
+    ]
+  },
+  {
+    category: 'AC Filter and Vent Cleaning',
+    items: [
+      { id:'ac_filtervent_1', name:'For 1 unit', sub:'', price:null },
+      { id:'ac_filtervent_2', name:'For 2 units', sub:'', price:null },
+      { id:'ac_filtervent_3', name:'For 3 units', sub:'', price:null },
+      { id:'ac_filtervent_4', name:'For 4 units', sub:'', price:null },
+      { id:'ac_filtervent_5', name:'For 5 units', sub:'', price:null },
+    ]
+  },
+  {
+    category: 'AC Duct Cleaning (Duct & Filter)',
+    items: [
+      { id:'ac_duct_1', name:'For 1 unit', sub:'', price:null },
+      { id:'ac_duct_2', name:'For 2 units', sub:'', price:null },
+      { id:'ac_duct_3', name:'For 3 units', sub:'', price:null },
+      { id:'ac_duct_4', name:'For 4 units', sub:'', price:null },
+      { id:'ac_duct_5', name:'For 5 units', sub:'', price:null },
+    ]
+  },
+  {
+    category: 'AC Deep Cleaning (Filter, Duct and Coil)',
+    items: [
+      { id:'ac_deep_1', name:'1 unit', sub:'', price:null },
+      { id:'ac_deep_2', name:'2 units', sub:'', price:null },
+      { id:'ac_deep_3', name:'3 units', sub:'', price:null },
+      { id:'ac_deep_4', name:'4 units', sub:'', price:null },
+      { id:'ac_deep_5', name:'5 units', sub:'', price:null },
+    ]
+  }
+];
+
+function flattenFurniture(){ return FURNITURE_CATALOG.flatMap(c => c.items); }
+function flattenAC(){ return AC_CATALOG.flatMap(c => c.items); }
+
+const DEFAULT_PIN = '1234';
+
+// ---------- State ----------
+let selectedType = null; // 'furniture' | 'ac' | null
+let bookingRef = '';
+let furnQty = {};
+let acQty = {};
+let acAppliedCode = null;
+let editMode = false;
+let adminPin = DEFAULT_PIN;
+let editPinDraft = DEFAULT_PIN;
+let AC_DISCOUNT_PERCENT = 25;
+let AC_DISCOUNT_MAX_AED = 150;
+let cachedLogEntries = [];
+let dataLoaded = false;
+let loadError = false;
+
+flattenFurniture().forEach(it => furnQty[it.id] = 0);
+flattenAC().forEach(it => acQty[it.id] = 0);
+
+function fmt(n){ return 'AED ' + Number(n).toLocaleString('en-AE', {maximumFractionDigits:0}); }
+
+// ---------- Shared backend (Google Sheet via Apps Script) ----------
+async function apiGet(action){
+  const res = await fetch(`${API_URL}?action=${action}`);
+  if(!res.ok) throw new Error('Network error');
+  return res.json();
+}
+async function apiPost(payload){
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  if(!res.ok) throw new Error('Network error');
+  return res.json();
+}
+
+function applyServerPrices(prices){
+  if(!prices) return;
+  flattenFurniture().forEach(it => {
+    const p = prices[it.id];
+    if(p){
+      it.appPrice = (p.app === null || p.app === undefined || p.app === '') ? null : Number(p.app);
+      it.newPrice = (p.new === null || p.new === undefined || p.new === '') ? null : Number(p.new);
+    }
+  });
+  flattenAC().forEach(it => {
+    const p = prices[it.id];
+    if(p) it.price = (p.new === null || p.new === undefined || p.new === '') ? null : Number(p.new);
+  });
+}
+
+async function init(){
+  try{
+    const [dataRes, logRes] = await Promise.all([apiGet('getData'), apiGet('getLog')]);
+    if(dataRes && dataRes.ok){
+      applyServerPrices(dataRes.prices);
+      if(dataRes.config){
+        if(dataRes.config.adminPin !== undefined && dataRes.config.adminPin !== '') adminPin = String(dataRes.config.adminPin);
+        if(dataRes.config.acDiscountPercent !== undefined && dataRes.config.acDiscountPercent !== '') AC_DISCOUNT_PERCENT = Number(dataRes.config.acDiscountPercent);
+        if(dataRes.config.acDiscountMax !== undefined && dataRes.config.acDiscountMax !== '') AC_DISCOUNT_MAX_AED = Number(dataRes.config.acDiscountMax);
+      }
+      editPinDraft = adminPin;
+    } else {
+      loadError = true;
+    }
+    if(logRes && logRes.ok) cachedLogEntries = logRes.entries;
+    dataLoaded = true;
+  }catch(e){
+    loadError = true;
+  }
+  updateLogButton();
+  renderContent();
+}
+
+// ---------- Calculations ----------
+function calcFurnitureTotals(){
+  let appTotal = 0, newTotal = 0, count = 0;
+  flattenFurniture().forEach(it => {
+    const q = furnQty[it.id] || 0;
+    if(q > 0 && it.newPrice){
+      const ap = it.appPrice !== null ? it.appPrice : it.newPrice;
+      appTotal += q * ap;
+      newTotal += q * it.newPrice;
+      count += q;
+    }
+  });
+  return {appTotal, newTotal, count};
+}
+function calcACTotals(){
+  let subtotal = 0, count = 0;
+  flattenAC().forEach(it => {
+    const q = acQty[it.id] || 0;
+    if(q > 0 && it.price){ subtotal += q*it.price; count += q; }
+  });
+  const discountAmt = (acAppliedCode && AC_DISCOUNT_PERCENT > 0) ? Math.min(subtotal * AC_DISCOUNT_PERCENT / 100, AC_DISCOUNT_MAX_AED) : 0;
+  const finalTotal = subtotal - discountAmt;
+  return {subtotal, discountAmt, finalTotal, count};
+}
+
+// ---------- Rendering ----------
+function renderBookingRef(){
+  const card = document.createElement('div');
+  card.className = 'booking-ref-card';
+  card.innerHTML = `<div class="lbl">Booking Reference Number</div>`;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'e.g. JL-4839201';
+  input.value = bookingRef;
+  input.addEventListener('input', e => { bookingRef = e.target.value; });
+  card.appendChild(input);
+  return card;
+}
+
+function renderFurnitureSection(){
+  const wrap = document.createElement('div');
+
+  const title = document.createElement('div');
+  title.className = 'section-title';
+  title.innerHTML = '<span class="dot"></span> Furniture Cleaning';
+  wrap.appendChild(title);
+
+  const note = document.createElement('div');
+  note.className = 'base-note';
+  note.innerHTML = 'Tick the items the customer added <b>on top of</b> their original booking. Items marked <span style="color:var(--amber);font-weight:600;">no price set</span> aren\'t priced yet.';
+  wrap.appendChild(note);
+
+  FURNITURE_CATALOG.forEach(cat => {
+    const section = document.createElement('div');
+    section.className = 'category';
+    const catTitle = document.createElement('div');
+    catTitle.className = 'category-title';
+    catTitle.textContent = cat.category;
+    section.appendChild(catTitle);
+
+    cat.items.forEach(it => {
+      const card = document.createElement('div');
+      card.className = 'item-card';
+
+      const info = document.createElement('div');
+      info.className = 'item-info';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'item-name';
+      nameEl.textContent = it.name;
+      info.appendChild(nameEl);
+
+      if(it.newPrice === null){
+        const unset = document.createElement('div');
+        unset.className = 'item-price unset';
+        unset.textContent = 'No price set';
+        info.appendChild(unset);
+      } else {
+        const row = document.createElement('div');
+        row.className = 'item-price-row';
+        if(it.appPrice !== null && it.appPrice !== undefined){
+          const appEl = document.createElement('span');
+          appEl.className = 'app-price';
+          appEl.textContent = fmt(it.appPrice);
+          row.appendChild(appEl);
+        }
+        const newEl = document.createElement('span');
+        newEl.className = 'new-price' + ((it.appPrice && it.newPrice < it.appPrice) ? ' discounted' : '');
+        newEl.textContent = fmt(it.newPrice) + ' each';
+        row.appendChild(newEl);
+        info.appendChild(row);
+      }
+      card.appendChild(info);
+
+      const stepper = document.createElement('div');
+      stepper.className = 'stepper';
+      const minus = document.createElement('button');
+      minus.textContent = '–';
+      minus.disabled = !it.newPrice;
+      const qtyEl = document.createElement('div');
+      qtyEl.className = 'qty';
+      qtyEl.textContent = furnQty[it.id];
+      const plus = document.createElement('button');
+      plus.textContent = '+';
+      plus.disabled = !it.newPrice;
+
+      minus.addEventListener('click', () => {
+        if(furnQty[it.id] > 0){ furnQty[it.id]--; qtyEl.textContent = furnQty[it.id]; updateSummary(); }
+      });
+      plus.addEventListener('click', () => {
+        furnQty[it.id]++; qtyEl.textContent = furnQty[it.id]; updateSummary();
+      });
+
+      stepper.appendChild(minus);
+      stepper.appendChild(qtyEl);
+      stepper.appendChild(plus);
+      card.appendChild(stepper);
+
+      section.appendChild(card);
+    });
+
+    wrap.appendChild(section);
+  });
+
+  return wrap;
+}
+
+function renderACSection(){
+  const wrap = document.createElement('div');
+
+  const title = document.createElement('div');
+  title.className = 'section-title ac';
+  title.innerHTML = '<span class="dot"></span> AC Cleaning';
+  wrap.appendChild(title);
+
+  const note = document.createElement('div');
+  note.className = 'base-note ac';
+  note.innerHTML = 'Select the AC service(s) booked, then enter a discount code if the customer has one. <span style="color:var(--amber);font-weight:600;">No price set</span> items aren\'t priced yet.';
+  wrap.appendChild(note);
+
+  AC_CATALOG.forEach(cat => {
+    const section = document.createElement('div');
+    section.className = 'category';
+    const catTitle = document.createElement('div');
+    catTitle.className = 'category-title';
+    catTitle.textContent = cat.category;
+    section.appendChild(catTitle);
+
+    cat.items.forEach(it => {
+      const card = document.createElement('div');
+      card.className = 'item-card';
+
+      const info = document.createElement('div');
+      info.className = 'item-info';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'item-name';
+      nameEl.textContent = it.name;
+      info.appendChild(nameEl);
+      if(it.sub){
+        const subEl = document.createElement('div');
+        subEl.className = 'item-sub';
+        subEl.textContent = it.sub;
+        info.appendChild(subEl);
+      }
+
+      const priceEl = document.createElement('div');
+      if(it.price === null){
+        priceEl.className = 'item-price unset';
+        priceEl.textContent = 'No price set';
+      } else {
+        priceEl.className = 'item-price';
+        priceEl.textContent = fmt(it.price) + ' each';
+      }
+      info.appendChild(priceEl);
+      card.appendChild(info);
+
+      if(it.stepper){
+        const stepper = document.createElement('div');
+        stepper.className = 'stepper ac';
+        const minus = document.createElement('button');
+        minus.textContent = '–';
+        minus.disabled = !it.price;
+        const qtyEl = document.createElement('div');
+        qtyEl.className = 'qty';
+        qtyEl.textContent = acQty[it.id];
+        const plus = document.createElement('button');
+        plus.textContent = '+';
+        plus.disabled = !it.price;
+        minus.addEventListener('click', () => {
+          if(acQty[it.id] > 0){ acQty[it.id]--; qtyEl.textContent = acQty[it.id]; updateSummary(); }
+        });
+        plus.addEventListener('click', () => {
+          acQty[it.id]++; qtyEl.textContent = acQty[it.id]; updateSummary();
+        });
+        stepper.appendChild(minus);
+        stepper.appendChild(qtyEl);
+        stepper.appendChild(plus);
+        card.appendChild(stepper);
+      } else {
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'select-toggle ac' + (acQty[it.id] > 0 ? ' selected' : '');
+        toggleBtn.textContent = acQty[it.id] > 0 ? 'Selected ✓' : 'Select';
+        toggleBtn.disabled = !it.price;
+        toggleBtn.addEventListener('click', () => {
+          acQty[it.id] = acQty[it.id] > 0 ? 0 : 1;
+          toggleBtn.classList.toggle('selected', acQty[it.id] > 0);
+          toggleBtn.textContent = acQty[it.id] > 0 ? 'Selected ✓' : 'Select';
+          updateSummary();
+        });
+        card.appendChild(toggleBtn);
+      }
+
+      section.appendChild(card);
+    });
+
+    wrap.appendChild(section);
+  });
+
+  const quoteNote = document.createElement('div');
+  quoteNote.className = 'note-quote';
+  quoteNote.textContent = 'AC Maintenance and AC Repair & Installation are quoted separately and are not included in this calculator.';
+  wrap.appendChild(quoteNote);
+
+  const discCard = document.createElement('div');
+  discCard.className = 'discount-card';
+  discCard.innerHTML = `<h4>Discount Code</h4><div class="discount-hint">Enter your discount code — a fixed ${AC_DISCOUNT_PERCENT}% off (up to AED ${AC_DISCOUNT_MAX_AED} max) will be applied.</div>`;
+  const row = document.createElement('div');
+  row.className = 'discount-row';
+  const codeInput = document.createElement('input');
+  codeInput.type = 'text';
+  codeInput.placeholder = 'e.g. CREW10';
+  codeInput.value = acAppliedCode || '';
+  const applyBtn = document.createElement('button');
+  applyBtn.className = 'apply-btn';
+  applyBtn.textContent = 'Apply';
+  applyBtn.disabled = AC_DISCOUNT_PERCENT <= 0;
+  applyBtn.addEventListener('click', () => {
+    const code = codeInput.value.trim();
+    if(!code) return;
+    acAppliedCode = code.toUpperCase();
+    renderContent();
+  });
+  row.appendChild(codeInput);
+  row.appendChild(applyBtn);
+  discCard.appendChild(row);
+
+  if(AC_DISCOUNT_PERCENT <= 0){
+    const hint = document.createElement('div');
+    hint.className = 'discount-hint';
+    hint.textContent = 'No discount is currently configured.';
+    discCard.appendChild(hint);
+  } else if(acAppliedCode){
+    const {discountAmt} = calcACTotals();
+    const cappedNote = discountAmt >= AC_DISCOUNT_MAX_AED ? ` (capped at AED ${AC_DISCOUNT_MAX_AED})` : '';
+    const appliedRow = document.createElement('div');
+    appliedRow.className = 'discount-applied';
+    appliedRow.innerHTML = `<span>Code "${acAppliedCode}" applied — ${AC_DISCOUNT_PERCENT}% off${cappedNote}</span>`;
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-discount';
+    removeBtn.textContent = 'Remove';
+    removeBtn.addEventListener('click', () => { acAppliedCode = null; renderContent(); });
+    appliedRow.appendChild(removeBtn);
+    discCard.appendChild(appliedRow);
+  }
+  wrap.appendChild(discCard);
+
+  return wrap;
+}
+
+function renderContent(){
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+  document.querySelector('.service-toggle').style.display = editMode ? 'none' : 'flex';
+
+  if(loadError){
+    const hint = document.createElement('div');
+    hint.className = 'empty-hint';
+    hint.textContent = "Can't reach the shared price list. Check your internet connection and reload the page.";
+    content.appendChild(hint);
+    document.getElementById('summaryBar').style.display = 'none';
+    return;
+  }
+
+  if(!dataLoaded){
+    const hint = document.createElement('div');
+    hint.className = 'empty-hint';
+    hint.textContent = 'Loading pricing…';
+    content.appendChild(hint);
+    document.getElementById('summaryBar').style.display = 'none';
+    return;
+  }
+
+  if(editMode){
+    content.appendChild(renderEditMode());
+    document.getElementById('summaryBar').style.display = 'none';
+    return;
+  }
+
+  if(!selectedType){
+    const hint = document.createElement('div');
+    hint.className = 'empty-hint';
+    hint.textContent = 'Select Furniture Cleaning or AC Cleaning above to start a new entry.';
+    content.appendChild(hint);
+  } else {
+    content.appendChild(renderBookingRef());
+    if(selectedType === 'furniture') content.appendChild(renderFurnitureSection());
+    if(selectedType === 'ac') content.appendChild(renderACSection());
+  }
+
+  document.getElementById('summaryBar').style.display = selectedType ? 'block' : 'none';
+  updateSummary();
+}
+
+function renderEditMode(){
+  const wrap = document.createElement('div');
+
+  const banner = document.createElement('div');
+  banner.className = 'admin-banner';
+  banner.innerHTML = '<b>Edit mode:</b> Update prices below, then tap Save. Changes save to the shared price sheet and apply to <b>every crew member\'s calculator immediately</b>.';
+  wrap.appendChild(banner);
+
+  const pinCard = document.createElement('div');
+  pinCard.className = 'change-pin-card';
+  pinCard.innerHTML = `<div class="lbl">Manager PIN</div><div class="sub">Change the PIN required to edit prices or view the log — this changes it for everyone.</div>`;
+  const pinInput = document.createElement('input');
+  pinInput.type = 'text';
+  pinInput.placeholder = 'Current PIN';
+  pinInput.value = editPinDraft;
+  pinInput.addEventListener('input', e => { editPinDraft = e.target.value; });
+  pinCard.appendChild(pinInput);
+  wrap.appendChild(pinCard);
+
+  // Furniture pricing
+  const furnTitle = document.createElement('div');
+  furnTitle.className = 'section-title';
+  furnTitle.innerHTML = '<span class="dot"></span> Furniture Cleaning Prices';
+  wrap.appendChild(furnTitle);
+
+  FURNITURE_CATALOG.forEach(cat => {
+    const section = document.createElement('div');
+    section.className = 'category';
+    const catTitle = document.createElement('div');
+    catTitle.className = 'category-title';
+    catTitle.textContent = cat.category;
+    section.appendChild(catTitle);
+
+    cat.items.forEach(it => {
+      const card = document.createElement('div');
+      card.className = 'item-card';
+
+      const info = document.createElement('div');
+      info.className = 'item-info';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'item-name';
+      nameEl.textContent = it.name;
+      info.appendChild(nameEl);
+      card.appendChild(info);
+
+      const cols = document.createElement('div');
+      cols.className = 'edit-price-cols';
+
+      const appCol = document.createElement('div');
+      appCol.className = 'edit-price-col';
+      appCol.innerHTML = '<label>App</label>';
+      const appInput = document.createElement('input');
+      appInput.type = 'number';
+      appInput.min = '0';
+      appInput.className = 'edit-price-input';
+      appInput.placeholder = 'AED';
+      appInput.value = (it.appPrice === null || it.appPrice === undefined) ? '' : it.appPrice;
+      appInput.addEventListener('input', e => {
+        it.appPrice = e.target.value === '' ? null : Number(e.target.value);
+      });
+      appCol.appendChild(appInput);
+
+      const newCol = document.createElement('div');
+      newCol.className = 'edit-price-col';
+      newCol.innerHTML = '<label>New</label>';
+      const newInput = document.createElement('input');
+      newInput.type = 'number';
+      newInput.min = '0';
+      newInput.className = 'edit-price-input new-input';
+      newInput.placeholder = 'AED';
+      newInput.value = (it.newPrice === null || it.newPrice === undefined) ? '' : it.newPrice;
+      newInput.addEventListener('input', e => {
+        it.newPrice = e.target.value === '' ? null : Number(e.target.value);
+      });
+      newCol.appendChild(newInput);
+
+      cols.appendChild(appCol);
+      cols.appendChild(newCol);
+      card.appendChild(cols);
+      section.appendChild(card);
+    });
+
+    wrap.appendChild(section);
+  });
+
+  // AC pricing
+  const acTitle = document.createElement('div');
+  acTitle.className = 'section-title ac';
+  acTitle.innerHTML = '<span class="dot"></span> AC Cleaning Prices';
+  wrap.appendChild(acTitle);
+
+  AC_CATALOG.forEach(cat => {
+    const acSection = document.createElement('div');
+    acSection.className = 'category';
+    const acCatTitle = document.createElement('div');
+    acCatTitle.className = 'category-title';
+    acCatTitle.textContent = cat.category;
+    acSection.appendChild(acCatTitle);
+
+    cat.items.forEach(it => {
+      const card = document.createElement('div');
+      card.className = 'item-card';
+
+      const info = document.createElement('div');
+      info.className = 'item-info';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'item-name';
+      nameEl.textContent = it.name;
+      info.appendChild(nameEl);
+      if(it.sub){
+        const subEl = document.createElement('div');
+        subEl.className = 'item-sub';
+        subEl.textContent = it.sub;
+        info.appendChild(subEl);
+      }
+      card.appendChild(info);
+
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.className = 'edit-price-input ac-input';
+      input.placeholder = 'AED';
+      input.value = (it.price === null || it.price === undefined) ? '' : it.price;
+      input.addEventListener('input', e => {
+        it.price = e.target.value === '' ? null : Number(e.target.value);
+      });
+      card.appendChild(input);
+
+      acSection.appendChild(card);
+    });
+
+    wrap.appendChild(acSection);
+  });
+
+  const discNote = document.createElement('div');
+  discNote.className = 'base-note ac';
+  discNote.textContent = `AC discount is fixed at ${AC_DISCOUNT_PERCENT}% (max AED ${AC_DISCOUNT_MAX_AED}) and isn't editable here by design.`;
+  wrap.appendChild(discNote);
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'save-btn';
+  saveBtn.textContent = 'Save Prices';
+  const status = document.createElement('div');
+  status.className = 'save-status';
+  saveBtn.addEventListener('click', async () => {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    status.style.color = 'var(--teal-700)';
+    status.textContent = '';
+
+    const prices = {};
+    flattenFurniture().forEach(it => { prices[it.id] = { app: it.appPrice, new: it.newPrice }; });
+    flattenAC().forEach(it => { prices[it.id] = { app: null, new: it.price }; });
+    const newPin = (editPinDraft && editPinDraft !== adminPin) ? editPinDraft : undefined;
+
+    try{
+      const res = await apiPost({ action: 'savePrices', pin: adminPin, prices, newPin });
+      if(res && res.ok){
+        if(newPin) adminPin = newPin;
+        status.textContent = 'Saved for everyone.';
+      } else {
+        status.style.color = '#c0392b';
+        status.textContent = (res && res.error) ? res.error : 'Save failed — please try again.';
+      }
+    }catch(e){
+      status.style.color = '#c0392b';
+      status.textContent = 'Save failed — check your connection.';
+    }
+
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save Prices';
+  });
+  wrap.appendChild(saveBtn);
+  wrap.appendChild(status);
+
+  return wrap;
+}
+
+function updateSummary(){
+  if(!selectedType) return;
+  let subtotal = 0, finalTotal = 0, discountAmt = 0, count = 0, discountPct = 0;
+
+  if(selectedType === 'furniture'){
+    const {appTotal, newTotal, count: c} = calcFurnitureTotals();
+    subtotal = appTotal; finalTotal = newTotal; count = c;
+    discountAmt = appTotal - newTotal;
+    discountPct = appTotal > 0 ? Math.round((appTotal - newTotal) / appTotal * 1000) / 10 : 0;
+  } else {
+    const {subtotal: s, discountAmt: d, finalTotal: f, count: c} = calcACTotals();
+    subtotal = s; discountAmt = d; finalTotal = f; count = c;
+    discountPct = AC_DISCOUNT_PERCENT;
+  }
+
+  document.getElementById('itemCount').textContent = count;
+  document.getElementById('subtotalLine').style.display = discountAmt > 0 ? 'flex' : 'none';
+  document.getElementById('subtotalAmount').textContent = fmt(subtotal);
+  document.getElementById('discountLine').style.display = discountAmt > 0 ? 'flex' : 'none';
+  const cappedNote = (selectedType === 'ac' && discountAmt >= AC_DISCOUNT_MAX_AED) ? ` (capped)` : '';
+  document.getElementById('discountLabel').textContent = `Discount (${discountPct}%${cappedNote})`;
+  document.getElementById('discountAmount').textContent = '– ' + fmt(discountAmt);
+  document.getElementById('totalAmount').textContent = fmt(finalTotal);
+
+  const confirmBtn = document.getElementById('confirmBtn');
+  if(confirmBtn) confirmBtn.disabled = count === 0;
+}
+
+function showToast(msg){
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+function selectType(type){
+  if(selectedType === type){
+    selectedType = null; // tap again to deselect
+  } else {
+    selectedType = type;
+    // reset the other type's quantities so a stale selection can't sneak into a new entry
+    if(type === 'furniture'){ flattenAC().forEach(it => acQty[it.id] = 0); acAppliedCode = null; }
+    if(type === 'ac'){ flattenFurniture().forEach(it => furnQty[it.id] = 0); }
+  }
+  document.getElementById('toggleFurniture').classList.toggle('active', selectedType === 'furniture');
+  document.getElementById('toggleAC').classList.toggle('active', selectedType === 'ac');
+  renderContent();
+}
+
+document.getElementById('toggleFurniture').addEventListener('click', () => { if(dataLoaded) selectType('furniture'); });
+document.getElementById('toggleAC').addEventListener('click', () => { if(dataLoaded) selectType('ac'); });
+
+let pendingPinAction = null; // 'edit' | 'log'
+
+function showPinOverlay(action){
+  pendingPinAction = action;
+  document.getElementById('pinOverlay').style.display = 'flex';
+  document.getElementById('pinError').textContent = '';
+  const box = document.querySelector('.pin-box p');
+  box.textContent = action === 'log' ? 'Enter the PIN to view the confirmed entries log.' : 'Enter the PIN to edit prices.';
+  const input = document.getElementById('pinInput');
+  input.value = '';
+  setTimeout(() => input.focus(), 50);
+}
+function hidePinOverlay(){
+  document.getElementById('pinOverlay').style.display = 'none';
+  pendingPinAction = null;
+}
+
+document.getElementById('editBtn').addEventListener('click', () => {
+  if(!dataLoaded) return;
+  if(editMode){
+    editMode = false;
+    const btn = document.getElementById('editBtn');
+    btn.textContent = 'Edit Prices';
+    renderContent();
+  } else {
+    showPinOverlay('edit');
+  }
+});
+document.getElementById('logBtn').addEventListener('click', () => {
+  if(!dataLoaded) return;
+  showPinOverlay('log');
+});
+document.getElementById('pinCancelBtn').addEventListener('click', hidePinOverlay);
+document.getElementById('pinSubmitBtn').addEventListener('click', async () => {
+  const val = document.getElementById('pinInput').value;
+  if(val === adminPin){
+    const action = pendingPinAction;
+    hidePinOverlay();
+    if(action === 'log'){
+      showToast('Loading log…');
+      try{
+        const res = await apiGet('getLog');
+        if(res && res.ok) cachedLogEntries = res.entries;
+      }catch(e){ /* fall back to last-known cachedLogEntries */ }
+      updateLogButton();
+      showLogPanel();
+    } else {
+      editPinDraft = adminPin;
+      editMode = true;
+      document.getElementById('editBtn').textContent = 'Done Editing';
+      renderContent();
+    }
+  } else {
+    document.getElementById('pinError').textContent = 'Incorrect PIN.';
+  }
+});
+document.getElementById('pinInput').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter') document.getElementById('pinSubmitBtn').click();
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  flattenFurniture().forEach(it => furnQty[it.id] = 0);
+  flattenAC().forEach(it => acQty[it.id] = 0);
+  acAppliedCode = null;
+  bookingRef = '';
+  renderContent();
+});
+
+document.getElementById('confirmBtn').addEventListener('click', () => {
+  const errorEl = document.getElementById('confirmError');
+  errorEl.textContent = '';
+  if(!bookingRef.trim()){
+    errorEl.textContent = 'Enter the booking reference number first.';
+    return;
+  }
+
+  let record;
+  if(selectedType === 'furniture'){
+    const selected = flattenFurniture().filter(it => furnQty[it.id] > 0 && it.newPrice);
+    if(selected.length === 0){ errorEl.textContent = 'Select at least one item.'; return; }
+    const {appTotal, newTotal} = calcFurnitureTotals();
+    const discountPercent = appTotal > 0 ? Math.round((appTotal - newTotal) / appTotal * 1000) / 10 : 0;
+    record = {
+      type: 'furniture',
+      bookingRef: bookingRef.trim(),
+      timestamp: new Date().toISOString(),
+      items: selected.map(it => ({ name: it.name, qty: furnQty[it.id], price: it.newPrice, lineTotal: furnQty[it.id]*it.newPrice })),
+      subtotal: appTotal,
+      discountPercent,
+      finalTotal: newTotal
+    };
+  } else {
+    const selected = flattenAC().filter(it => acQty[it.id] > 0 && it.price);
+    if(selected.length === 0){ errorEl.textContent = 'Select at least one item.'; return; }
+    const {subtotal, finalTotal} = calcACTotals();
+    record = {
+      type: 'ac',
+      bookingRef: bookingRef.trim(),
+      timestamp: new Date().toISOString(),
+      items: selected.map(it => ({ name: it.name, qty: acQty[it.id], price: it.price, lineTotal: acQty[it.id]*it.price })),
+      subtotal,
+      discountCode: acAppliedCode || null,
+      discountPercent: acAppliedCode ? AC_DISCOUNT_PERCENT : 0,
+      finalTotal
+    };
+  }
+
+  // Nothing is saved yet — the crew reviews first and only Confirm inside the review saves it.
+  showReviewModal(record);
+});
+
+function resetEntryForm(){
+  flattenFurniture().forEach(it => furnQty[it.id] = 0);
+  flattenAC().forEach(it => acQty[it.id] = 0);
+  acAppliedCode = null;
+  bookingRef = '';
+  selectedType = null;
+  document.getElementById('toggleFurniture').classList.remove('active');
+  document.getElementById('toggleAC').classList.remove('active');
+  renderContent();
+}
+
+function buildAgentSummary(record){
+  const d = new Date(record.timestamp);
+  const lines = [];
+  lines.push(`Booking Ref: ${record.bookingRef}`);
+  lines.push(`Service: ${record.type === 'ac' ? 'AC Cleaning' : 'Furniture Cleaning'}`);
+  lines.push('Items to add on the app:');
+  record.items.forEach(i => lines.push(`- ${i.qty}x ${i.name} — ${fmt(i.lineTotal)}`));
+  lines.push(`Subtotal: ${fmt(record.subtotal)}`);
+  if(record.discountPercent > 0){
+    const discountAmt = record.subtotal - record.finalTotal;
+    const codeNote = record.discountCode ? `Code: ${record.discountCode} — ` : '';
+    lines.push(`Discount: ${codeNote}${record.discountPercent}%${record.type === 'ac' ? ` (max AED ${AC_DISCOUNT_MAX_AED})` : ''} — ${fmt(discountAmt)} off`);
+  }
+  lines.push(`Final Total: ${fmt(record.finalTotal)}`);
+  lines.push(`Confirmed: ${d.toLocaleDateString()} ${d.toLocaleTimeString()}`);
+  return lines.join('\n');
+}
+
+function makeSummaryTextarea(text){
+  const pre = document.createElement('textarea');
+  pre.readOnly = true;
+  pre.value = text;
+  pre.style.width = '100%';
+  pre.style.minHeight = '220px';
+  pre.style.padding = '12px';
+  pre.style.border = '1px solid var(--line)';
+  pre.style.borderRadius = '10px';
+  pre.style.fontFamily = 'Consolas, Menlo, monospace';
+  pre.style.fontSize = '13px';
+  pre.style.color = 'var(--ink)';
+  pre.style.background = 'var(--white)';
+  pre.style.resize = 'vertical';
+  return pre;
+}
+
+function makeCopyButton(text, pre){
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'export-btn';
+  copyBtn.textContent = 'Copy Summary';
+  copyBtn.style.marginTop = '12px';
+  copyBtn.style.width = '100%';
+  copyBtn.style.padding = '12px';
+  copyBtn.addEventListener('click', async () => {
+    try{
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = 'Copied ✓';
+      setTimeout(() => { copyBtn.textContent = 'Copy Summary'; }, 1800);
+    }catch(e){
+      pre.select();
+      document.execCommand('copy');
+      copyBtn.textContent = 'Copied ✓';
+      setTimeout(() => { copyBtn.textContent = 'Copy Summary'; }, 1800);
+    }
+  });
+  return copyBtn;
+}
+
+// Step 1: review before anything is saved. X = cancel (discard, no save).
+// Back = return to editing (no save, selections kept). Confirm = actually save.
+function showReviewModal(record){
+  const overlay = document.createElement('div');
+  overlay.className = 'log-overlay';
+
+  const panel = document.createElement('div');
+  panel.className = 'log-panel';
+
+  const head = document.createElement('div');
+  head.className = 'log-panel-header';
+  head.innerHTML = `<h3>Review Entry</h3>`;
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'log-close-btn';
+  closeBtn.title = 'Cancel — nothing will be saved';
+  closeBtn.innerHTML = '&times;';
+  closeBtn.addEventListener('click', () => {
+    overlay.remove();
+    resetEntryForm(); // Cancel discards the draft entirely
+  });
+  head.appendChild(closeBtn);
+  panel.appendChild(head);
+
+  const note = document.createElement('div');
+  note.className = 'log-note';
+  note.style.marginTop = '0';
+  note.style.marginBottom = '12px';
+  note.textContent = 'Check the details below, then confirm to log this entry. Nothing is saved yet.';
+  panel.appendChild(note);
+
+  const text = buildAgentSummary(record);
+  const pre = makeSummaryTextarea(text);
+  panel.appendChild(pre);
+
+  const statusEl = document.createElement('div');
+  statusEl.style.textAlign = 'center';
+  statusEl.style.fontSize = '12.5px';
+  statusEl.style.fontWeight = '600';
+  statusEl.style.minHeight = '16px';
+  statusEl.style.margin = '8px 0 2px';
+  panel.appendChild(statusEl);
+
+  const btnRow = document.createElement('div');
+  btnRow.style.display = 'flex';
+  btnRow.style.gap = '8px';
+  btnRow.style.marginTop = '10px';
+
+  const backBtn = document.createElement('button');
+  backBtn.textContent = 'Back';
+  backBtn.style.flex = '1';
+  backBtn.style.padding = '12px';
+  backBtn.style.borderRadius = '10px';
+  backBtn.style.border = '1px solid var(--line)';
+  backBtn.style.background = 'var(--mint-100)';
+  backBtn.style.color = 'var(--teal-900)';
+  backBtn.style.fontWeight = '700';
+  backBtn.style.fontSize = '14px';
+  backBtn.style.cursor = 'pointer';
+  backBtn.addEventListener('click', () => {
+    overlay.remove();
+    // Back keeps the current selections/booking ref intact so the crew can edit them
+    renderContent();
+  });
+
+  const confirmFinalBtn = document.createElement('button');
+  confirmFinalBtn.className = 'export-btn';
+  confirmFinalBtn.textContent = 'Confirm';
+  confirmFinalBtn.style.flex = '1';
+  confirmFinalBtn.style.padding = '12px';
+  confirmFinalBtn.style.fontSize = '14px';
+  confirmFinalBtn.addEventListener('click', async () => {
+    confirmFinalBtn.disabled = true;
+    confirmFinalBtn.textContent = 'Saving…';
+    statusEl.textContent = '';
+    const ok = await submitLogEntry(record);
+    if(ok){
+      showEntrySuccess(panel, overlay, record, text, pre);
+    } else {
+      statusEl.style.color = '#c0392b';
+      statusEl.textContent = 'Could not save — check your connection and try again.';
+      confirmFinalBtn.disabled = false;
+      confirmFinalBtn.textContent = 'Confirm';
+    }
+  });
+
+  btnRow.appendChild(backBtn);
+  btnRow.appendChild(confirmFinalBtn);
+  panel.appendChild(btnRow);
+
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+}
+
+async function submitLogEntry(record){
+  try{
+    const res = await apiPost({ action: 'logEntry', record });
+    if(res && res.ok){
+      cachedLogEntries.unshift({
+        timestamp: record.timestamp,
+        bookingRef: record.bookingRef,
+        type: record.type,
+        items: record.items.map(i => `${i.qty}x ${i.name}`).join('; '),
+        subtotal: record.subtotal,
+        discountCode: record.discountCode || '',
+        discountPercent: record.discountPercent || 0,
+        finalTotal: record.finalTotal
+      });
+      updateLogButton();
+      return true;
+    }
+    return false;
+  }catch(e){
+    return false;
+  }
+}
+
+// Step 2: shown only after the entry has actually been saved successfully.
+function showEntrySuccess(panel, overlay, record, text, existingPre){
+  panel.innerHTML = '';
+
+  const head = document.createElement('div');
+  head.className = 'log-panel-header';
+  head.innerHTML = `<h3 style="color:var(--green-700);">✓ Entry Logged Successfully</h3>`;
+  panel.appendChild(head);
+
+  const note = document.createElement('div');
+  note.className = 'log-note';
+  note.style.marginTop = '0';
+  note.style.marginBottom = '12px';
+  note.textContent = 'Copy this and share it with the agent updating the booking on the Justlife app.';
+  panel.appendChild(note);
+
+  const pre = makeSummaryTextarea(text);
+  panel.appendChild(pre);
+  panel.appendChild(makeCopyButton(text, pre));
+
+  const doneBtn = document.createElement('button');
+  doneBtn.className = 'clear-btn';
+  doneBtn.textContent = 'Done — Start Next Entry';
+  doneBtn.style.width = '100%';
+  doneBtn.style.marginTop = '10px';
+  doneBtn.style.marginLeft = '0';
+  doneBtn.style.color = 'var(--teal-900)';
+  doneBtn.style.borderColor = 'var(--line)';
+  doneBtn.style.padding = '11px';
+  doneBtn.addEventListener('click', () => { overlay.remove(); resetEntryForm(); });
+  panel.appendChild(doneBtn);
+}
+
+function exportLogCSV(){
+  let csv = 'Type,Booking Ref,Date,Time,Items,Subtotal (AED),Discount Code,Discount %,Final Total (AED)\n';
+  cachedLogEntries.forEach(r => {
+    const d = new Date(r.timestamp);
+    csv += `"${r.type}","${r.bookingRef}","${d.toLocaleDateString()}","${d.toLocaleTimeString()}","${r.items}","${r.subtotal}","${r.discountCode || ''}","${r.discountPercent || 0}","${r.finalTotal}"\n`;
+  });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'justlife_confirmed_upsells.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function showLogPanel(){
+  const overlay = document.createElement('div');
+  overlay.className = 'log-overlay';
+  overlay.id = 'logOverlay';
+
+  const panel = document.createElement('div');
+  panel.className = 'log-panel';
+
+  const head = document.createElement('div');
+  head.className = 'log-panel-header';
+  head.innerHTML = `<h3>Confirmed Entries (${cachedLogEntries.length})</h3>`;
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'log-close-btn';
+  closeBtn.innerHTML = '&times;';
+  closeBtn.addEventListener('click', () => overlay.remove());
+  head.appendChild(closeBtn);
+  panel.appendChild(head);
+
+  if(cachedLogEntries.length > 0){
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'export-btn';
+    exportBtn.textContent = 'Export CSV';
+    exportBtn.style.marginBottom = '12px';
+    exportBtn.addEventListener('click', exportLogCSV);
+    panel.appendChild(exportBtn);
+  }
+
+  if(cachedLogEntries.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'log-empty';
+    empty.textContent = 'No confirmed entries yet.';
+    panel.appendChild(empty);
+  } else {
+    cachedLogEntries.forEach(r => {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      const d = new Date(r.timestamp);
+      let discRow = '';
+      if(r.discountPercent > 0){
+        const codeNote = r.discountCode ? `Code ${r.discountCode} — ` : '';
+        discRow = `<div class="log-entry-discount">${codeNote}Subtotal ${fmt(r.subtotal)} → ${r.discountPercent}% off</div>`;
+      }
+      entry.innerHTML = `
+        <div class="log-entry-top">
+          <span><span class="log-entry-type ${r.type === 'ac' ? 'ac' : ''}">${r.type === 'ac' ? 'AC' : 'Furniture'}</span>${r.bookingRef}</span>
+          <span>${fmt(r.finalTotal)}</span>
+        </div>
+        <div class="log-entry-date">${d.toLocaleDateString()} · ${d.toLocaleTimeString()}</div>
+        <div class="log-entry-items">${r.items}</div>
+        ${discRow}
+      `;
+      panel.appendChild(entry);
+    });
+  }
+
+  const note = document.createElement('div');
+  note.className = 'log-note';
+  note.textContent = "This log is shared — every crew member's confirmed entries appear here.";
+  panel.appendChild(note);
+
+  overlay.appendChild(panel);
+  overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+function updateLogButton(){
+  document.getElementById('logBtn').textContent = dataLoaded ? `Log (${cachedLogEntries.length})` : 'Log';
+}
+
+init();
+</script>
+
+</body>
+</html>
