@@ -374,13 +374,22 @@
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
 // =====================================================================
-// BACKEND — this calculator reads/writes a shared Google Sheet through
-// an Apps Script Web App. If you ever redeploy that script, paste the
-// new /exec URL below and re-upload this file.
+// BACKEND — this calculator reads/writes a shared Firestore database.
 // =====================================================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbyL2q3M0GLAKLeVH6Ee2iiwS3DGWp81uo8cUyge5FLMI1mb4RYYFK4b0cB16Ei_VdabDQ/exec';
+const firebaseConfig = {
+  apiKey: "AIzaSyBy•••••••••••••••••••••••••••••••",
+  authDomain: "justlife-upsell.firebaseapp.com",
+  projectId: "justlife-upsell",
+  storageBucket: "justlife-upsell.firebasestorage.app",
+  messagingSenderId: "778692299690",
+  appId: "1:778692299690:web:9cd655960b948dbea4f9d3"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 // ---------- Fixed catalogs (item names/ids/categories live here; prices come from the shared Sheet) ----------
 const FURNITURE_CATALOG = [
@@ -514,20 +523,59 @@ flattenAC().forEach(it => acQty[it.id] = 0);
 
 function fmt(n){ return 'AED ' + Number(n).toLocaleString('en-AE', {maximumFractionDigits:0}); }
 
-// ---------- Shared backend (Google Sheet via Apps Script) ----------
-async function apiGet(action){
-  const res = await fetch(`${API_URL}?action=${action}`);
-  if(!res.ok) throw new Error('Network error');
-  return res.json();
+// ---------- Shared backend (Firestore) ----------
+async function loadPricesAndConfig(){
+  const [pricesSnap, configSnap] = await Promise.all([
+    db.collection('prices').get(),
+    db.collection('config').doc('main').get()
+  ]);
+  const prices = {};
+  pricesSnap.forEach(d => { prices[d.id] = d.data(); });
+  const config = configSnap.exists ? configSnap.data() : {};
+  return { ok: true, prices, config };
 }
-async function apiPost(payload){
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload)
+
+async function loadLog(){
+  const snap = await db.collection('log').orderBy('timestamp', 'desc').get();
+  const entries = [];
+  snap.forEach(d => entries.push(d.data()));
+  return { ok: true, entries };
+}
+
+async function writeLogEntry(record){
+  await db.collection('log').add({
+    timestamp: record.timestamp,
+    bookingRef: record.bookingRef,
+    type: record.type,
+    items: record.items.map(i => `${i.qty}x ${i.name}`).join('; '),
+    subtotal: record.subtotal,
+    discountCode: record.discountCode || '',
+    discountPercent: record.discountPercent || 0,
+    finalTotal: record.finalTotal
   });
-  if(!res.ok) throw new Error('Network error');
-  return res.json();
+  return { ok: true };
+}
+
+async function writePrices(pin, prices, newPin){
+  try{
+    const batch = db.batch();
+    Object.keys(prices).forEach(id => {
+      const entry = prices[id];
+      batch.set(db.collection('prices').doc(id), {
+        app: entry.app === undefined ? null : entry.app,
+        new: entry.new === undefined ? null : entry.new,
+        pinProof: pin
+      });
+    });
+    batch.set(db.collection('config').doc('main'), {
+      pinProof: pin,
+      adminPin: newPin || pin
+    }, { merge: true });
+    await batch.commit();
+    return { ok: true };
+  }catch(e){
+    return { ok: false, error: 'Incorrect PIN or permission denied.' };
+  }
 }
 
 function applyServerPrices(prices){
@@ -547,7 +595,7 @@ function applyServerPrices(prices){
 
 async function init(){
   try{
-    const [dataRes, logRes] = await Promise.all([apiGet('getData'), apiGet('getLog')]);
+    const [dataRes, logRes] = await Promise.all([loadPricesAndConfig(), loadLog()]);
     if(dataRes && dataRes.ok){
       applyServerPrices(dataRes.prices);
       if(dataRes.config){
@@ -1032,7 +1080,7 @@ function renderEditMode(){
     const newPin = (editPinDraft && editPinDraft !== adminPin) ? editPinDraft : undefined;
 
     try{
-      const res = await apiPost({ action: 'savePrices', pin: adminPin, prices, newPin });
+      const res = await writePrices(adminPin, prices, newPin);
       if(res && res.ok){
         if(newPin) adminPin = newPin;
         status.textContent = 'Saved for everyone.';
@@ -1148,7 +1196,7 @@ document.getElementById('pinSubmitBtn').addEventListener('click', async () => {
     if(action === 'log'){
       showToast('Loading log…');
       try{
-        const res = await apiGet('getLog');
+        const res = await loadLog();
         if(res && res.ok) cachedLogEntries = res.entries;
       }catch(e){ /* fall back to last-known cachedLogEntries */ }
       updateLogButton();
@@ -1397,7 +1445,7 @@ function showReviewModal(record){
 
 async function submitLogEntry(record){
   try{
-    const res = await apiPost({ action: 'logEntry', record });
+    const res = await writeLogEntry(record);
     if(res && res.ok){
       cachedLogEntries.unshift({
         timestamp: record.timestamp,
