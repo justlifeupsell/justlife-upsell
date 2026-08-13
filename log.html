@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Justlife Upsell Log</title>
+<style>
+  :root{
+    --teal-900:#0b3d3a;
+    --teal-700:#0f5f57;
+    --teal-500:#178a7c;
+    --mint-100:#eaf6f3;
+    --sky-100:#e8f3fa;
+    --navy-900:#0e2a3d;
+    --paper:#fbfaf7;
+    --ink:#152524;
+    --ink-soft:#5b6b69;
+    --line:#dbe6e3;
+    --green-700:#1c7a4c;
+    --green-bg:#e9f8ef;
+    --white:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:'Segoe UI',Roboto,-apple-system,sans-serif;
+  }
+  header{
+    background:linear-gradient(135deg,var(--teal-900),var(--teal-700));
+    color:var(--white);padding:20px 18px;
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;
+  }
+  header h1{margin:0;font-size:19px;}
+  header p{margin:2px 0 0;font-size:12.5px;color:#cfe9e4;}
+  .header-actions{display:flex;gap:8px;}
+  .btn{
+    background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.35);
+    color:var(--white);padding:8px 14px;border-radius:999px;font-size:12.5px;
+    font-weight:600;cursor:pointer;white-space:nowrap;
+  }
+  main{padding:18px;max-width:1100px;margin:0 auto;}
+
+  .pin-overlay{
+    position:fixed;inset:0;background:rgba(11,61,58,0.55);
+    display:flex;align-items:center;justify-content:center;padding:20px;z-index:70;
+  }
+  .pin-box{
+    background:var(--white);border-radius:16px;padding:22px 20px;
+    max-width:320px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.25);
+  }
+  .pin-box h3{margin:0 0 6px;font-size:16px;color:var(--teal-900);}
+  .pin-box p{margin:0 0 14px;font-size:13px;color:var(--ink-soft);}
+  .pin-box input{
+    width:100%;padding:12px 14px;border:1px solid var(--line);
+    border-radius:10px;font-size:18px;letter-spacing:4px;text-align:center;margin-bottom:10px;
+  }
+  .pin-error{color:#c0392b;font-size:12.5px;margin:-4px 0 10px;min-height:16px;}
+  .pin-submit{
+    width:100%;padding:11px;border-radius:10px;font-size:14px;font-weight:700;
+    border:none;cursor:pointer;background:var(--teal-700);color:var(--white);
+  }
+
+  .summary-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+  .stat-card{
+    background:var(--white);border:1px solid var(--line);border-radius:12px;
+    padding:12px 16px;min-width:140px;
+  }
+  .stat-card .label{font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--ink-soft);font-weight:700;}
+  .stat-card .value{font-size:20px;font-weight:800;color:var(--teal-900);margin-top:2px;}
+
+  .table-wrap{
+    background:var(--white);border:1px solid var(--line);border-radius:14px;
+    overflow-x:auto;
+  }
+  table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap;}
+  th{
+    text-align:left;padding:10px 12px;background:var(--mint-100);color:var(--teal-900);
+    font-size:11px;text-transform:uppercase;letter-spacing:0.4px;position:sticky;top:0;
+  }
+  td{padding:10px 12px;border-top:1px solid var(--line);color:var(--ink);}
+  tr:hover td{background:#f7faf9;}
+  .type-pill{
+    display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;
+    padding:2px 7px;border-radius:999px;background:var(--mint-100);color:var(--teal-900);
+  }
+  .type-pill.ac{background:var(--sky-100);color:var(--navy-900);}
+  .discount-cell{color:var(--green-700);font-weight:600;}
+  .empty{text-align:center;padding:40px;color:var(--ink-soft);font-size:14px;}
+  .loading{text-align:center;padding:40px;color:var(--ink-soft);font-size:14px;}
+</style>
+</head>
+<body>
+
+<div id="pinOverlay" class="pin-overlay">
+  <div class="pin-box">
+    <h3>Manager Access</h3>
+    <p>Enter the PIN to view the confirmed entries log.</p>
+    <input type="password" id="pinInput" inputmode="numeric" placeholder="••••" maxlength="12" autofocus>
+    <div class="pin-error" id="pinError"></div>
+    <button class="pin-submit" id="pinSubmitBtn">Unlock</button>
+  </div>
+</div>
+
+<header>
+  <div>
+    <h1>Justlife Upsell Log</h1>
+    <p>Every confirmed entry, across all crews</p>
+  </div>
+  <div class="header-actions" id="headerActions" style="display:none;">
+    <button class="btn" id="refreshBtn">Refresh</button>
+    <button class="btn" id="exportBtn">Export CSV</button>
+  </div>
+</header>
+
+<main id="main" style="display:none;">
+  <div class="summary-row" id="summaryRow"></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Type</th>
+          <th>Booking Ref</th>
+          <th>Crew Code</th>
+          <th>Items</th>
+          <th>Subtotal</th>
+          <th>Discount</th>
+          <th>Final Total</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr><td colspan="9" class="loading">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBy•••••••••••••••••••••••••••••••",
+  authDomain: "justlife-upsell.firebaseapp.com",
+  projectId: "justlife-upsell",
+  storageBucket: "justlife-upsell.firebasestorage.app",
+  messagingSenderId: "778692299690",
+  appId: "1:778692299690:web:9cd655960b948dbea4f9d3"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let entries = [];
+
+function fmt(n){ return 'AED ' + Number(n).toLocaleString('en-AE', {maximumFractionDigits:0}); }
+
+async function loadAndRender(){
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="9" class="loading">Loading…</td></tr>';
+  const snap = await db.collection('log').orderBy('timestamp', 'desc').get();
+  entries = [];
+  snap.forEach(d => entries.push(d.data()));
+  renderTable();
+}
+
+function renderTable(){
+  const tbody = document.getElementById('tbody');
+  const summaryRow = document.getElementById('summaryRow');
+
+  const totalEntries = entries.length;
+  const totalRevenue = entries.reduce((sum, r) => sum + (Number(r.finalTotal) || 0), 0);
+  const furnitureCount = entries.filter(r => r.type === 'furniture').length;
+  const acCount = entries.filter(r => r.type === 'ac').length;
+
+  summaryRow.innerHTML = `
+    <div class="stat-card"><div class="label">Total Entries</div><div class="value">${totalEntries}</div></div>
+    <div class="stat-card"><div class="label">Total Revenue</div><div class="value">${fmt(totalRevenue)}</div></div>
+    <div class="stat-card"><div class="label">Furniture</div><div class="value">${furnitureCount}</div></div>
+    <div class="stat-card"><div class="label">AC</div><div class="value">${acCount}</div></div>
+  `;
+
+  if(entries.length === 0){
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">No confirmed entries yet.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = entries.map(r => {
+    const d = new Date(r.timestamp);
+    const discountText = r.discountPercent > 0
+      ? `<span class="discount-cell">${r.discountPercent}%</span>`
+      : '—';
+    return `
+      <tr>
+        <td>${d.toLocaleDateString()}</td>
+        <td>${d.toLocaleTimeString()}</td>
+        <td><span class="type-pill ${r.type === 'ac' ? 'ac' : ''}">${r.type === 'ac' ? 'AC' : 'Furniture'}</span></td>
+        <td>${r.bookingRef || ''}</td>
+        <td>${r.discountCode || '—'}</td>
+        <td>${r.items || ''}</td>
+        <td>${fmt(r.subtotal)}</td>
+        <td>${discountText}</td>
+        <td><b>${fmt(r.finalTotal)}</b></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function exportCSV(){
+  let csv = 'Type,Booking Ref,Date,Time,Crew Code,Items,Subtotal (AED),Discount %,Final Total (AED)\n';
+  entries.forEach(r => {
+    const d = new Date(r.timestamp);
+    csv += `"${r.type}","${r.bookingRef}","${d.toLocaleDateString()}","${d.toLocaleTimeString()}","${r.discountCode || ''}","${r.items}","${r.subtotal}","${r.discountPercent || 0}","${r.finalTotal}"\n`;
+  });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'justlife_upsell_log.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('refreshBtn').addEventListener('click', loadAndRender);
+document.getElementById('exportBtn').addEventListener('click', exportCSV);
+
+document.getElementById('pinSubmitBtn').addEventListener('click', async () => {
+  const val = document.getElementById('pinInput').value;
+  const errorEl = document.getElementById('pinError');
+  errorEl.textContent = '';
+  try{
+    const configSnap = await db.collection('config').doc('main').get();
+    const adminPin = configSnap.exists ? String(configSnap.data().adminPin) : '1234';
+    if(val === adminPin){
+      document.getElementById('pinOverlay').style.display = 'none';
+      document.getElementById('main').style.display = 'block';
+      document.getElementById('headerActions').style.display = 'flex';
+      loadAndRender();
+    } else {
+      errorEl.textContent = 'Incorrect PIN.';
+    }
+  }catch(e){
+    errorEl.textContent = 'Could not verify PIN — check your connection.';
+  }
+});
+document.getElementById('pinInput').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter') document.getElementById('pinSubmitBtn').click();
+});
+</script>
+
+</body>
+</html>
