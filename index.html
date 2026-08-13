@@ -178,6 +178,20 @@
   .discount-hint{font-size:11.5px;color:var(--ink-soft);margin-top:5px;}
   .note-quote{font-size:11.5px;color:var(--ink-soft);font-style:italic;margin:6px 2px 0;}
 
+  .crew-code-card{
+    background:var(--white);border:1px solid var(--sky-500);border-radius:var(--radius);
+    padding:13px;margin-bottom:16px;
+  }
+  .crew-code-card h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:0.6px;color:var(--navy-900);}
+  .crew-chip-row{display:flex;flex-wrap:wrap;gap:8px;}
+  .crew-chip{
+    padding:9px 14px;border-radius:999px;border:1px solid var(--line);
+    background:var(--white);color:var(--ink-soft);font-size:13px;font-weight:700;cursor:pointer;
+  }
+  .crew-chip.selected{background:var(--sky-500);border-color:var(--sky-500);color:var(--white);}
+  .crew-code-status{margin-top:9px;font-size:12.5px;color:var(--green-700);font-weight:600;}
+  .crew-code-missing{margin-top:2px;font-size:11.5px;color:var(--ink-soft);}
+
   .summary-bar{
     position:fixed;bottom:0;left:0;right:0;
     background:var(--teal-900);color:var(--white);
@@ -465,6 +479,19 @@ const AC_CATALOG = [
 function flattenFurniture(){ return FURNITURE_CATALOG.flatMap(c => c.items); }
 function flattenAC(){ return AC_CATALOG.flatMap(c => c.items); }
 
+const AC_ITEM_CATEGORY = {};
+AC_CATALOG.forEach(cat => cat.items.forEach(it => { AC_ITEM_CATEGORY[it.id] = cat.category; }));
+
+// Crew codes — each crew clicks their own code instead of typing a discount code.
+// To add/remove/rename a crew, edit this list and re-upload the file.
+const CREW_CODES = [
+  { name: 'Tahir',    code: 'TAHIR25AC' },
+  { name: 'Jerver',   code: 'JERVER25AC' },
+  { name: 'Nicholas', code: 'NICHOLAS25AC' },
+  { name: 'Nelson',   code: 'NELSON25AC' },
+  { name: 'Chris',    code: 'CHRIS25AC' },
+];
+
 const DEFAULT_PIN = '1234';
 
 // ---------- State ----------
@@ -573,10 +600,17 @@ function renderBookingRef(){
   card.innerHTML = `<div class="lbl">Booking Reference Number</div>`;
   const input = document.createElement('input');
   input.type = 'text';
-  input.placeholder = 'e.g. JL-4839201';
+  input.placeholder = 'e.g. A3F9K2';
+  input.maxLength = 6;
   input.value = bookingRef;
   input.addEventListener('input', e => { bookingRef = e.target.value; });
   card.appendChild(input);
+  const hint = document.createElement('div');
+  hint.style.fontSize = '11px';
+  hint.style.color = 'var(--ink-soft)';
+  hint.style.marginTop = '5px';
+  hint.textContent = '6 characters, letters and numbers only.';
+  card.appendChild(hint);
   return card;
 }
 
@@ -677,8 +711,40 @@ function renderACSection(){
 
   const note = document.createElement('div');
   note.className = 'base-note ac';
-  note.innerHTML = 'Select the AC service(s) booked, then enter a discount code if the customer has one. <span style="color:var(--amber);font-weight:600;">No price set</span> items aren\'t priced yet.';
+  note.innerHTML = 'Select your crew code below, then tick the AC service(s) booked. <span style="color:var(--amber);font-weight:600;">No price set</span> items aren\'t priced yet.';
   wrap.appendChild(note);
+
+  const crewCard = document.createElement('div');
+  crewCard.className = 'crew-code-card';
+  crewCard.innerHTML = '<h4>Crew Code</h4>';
+  const chipRow = document.createElement('div');
+  chipRow.className = 'crew-chip-row';
+  CREW_CODES.forEach(crew => {
+    const chip = document.createElement('button');
+    chip.className = 'crew-chip' + (acAppliedCode === crew.code ? ' selected' : '');
+    chip.textContent = crew.name;
+    chip.addEventListener('click', () => {
+      acAppliedCode = (acAppliedCode === crew.code) ? null : crew.code;
+      renderContent();
+    });
+    chipRow.appendChild(chip);
+  });
+  crewCard.appendChild(chipRow);
+  if(acAppliedCode){
+    const selectedCrew = CREW_CODES.find(c => c.code === acAppliedCode);
+    const {discountAmt} = calcACTotals();
+    const cappedNote = discountAmt >= AC_DISCOUNT_MAX_AED ? ` (capped at AED ${AC_DISCOUNT_MAX_AED})` : '';
+    const status = document.createElement('div');
+    status.className = 'crew-code-status';
+    status.textContent = `${selectedCrew ? selectedCrew.name : acAppliedCode} selected — ${AC_DISCOUNT_PERCENT}% off${cappedNote} will be applied.`;
+    crewCard.appendChild(status);
+  } else {
+    const missing = document.createElement('div');
+    missing.className = 'crew-code-missing';
+    missing.textContent = 'Required before you can confirm this entry.';
+    crewCard.appendChild(missing);
+  }
+  wrap.appendChild(crewCard);
 
   AC_CATALOG.forEach(cat => {
     const section = document.createElement('div');
@@ -762,49 +828,6 @@ function renderACSection(){
   quoteNote.className = 'note-quote';
   quoteNote.textContent = 'AC Maintenance and AC Repair & Installation are quoted separately and are not included in this calculator.';
   wrap.appendChild(quoteNote);
-
-  const discCard = document.createElement('div');
-  discCard.className = 'discount-card';
-  discCard.innerHTML = `<h4>Discount Code</h4><div class="discount-hint">Enter your discount code — a fixed ${AC_DISCOUNT_PERCENT}% off (up to AED ${AC_DISCOUNT_MAX_AED} max) will be applied.</div>`;
-  const row = document.createElement('div');
-  row.className = 'discount-row';
-  const codeInput = document.createElement('input');
-  codeInput.type = 'text';
-  codeInput.placeholder = 'e.g. CREW10';
-  codeInput.value = acAppliedCode || '';
-  const applyBtn = document.createElement('button');
-  applyBtn.className = 'apply-btn';
-  applyBtn.textContent = 'Apply';
-  applyBtn.disabled = AC_DISCOUNT_PERCENT <= 0;
-  applyBtn.addEventListener('click', () => {
-    const code = codeInput.value.trim();
-    if(!code) return;
-    acAppliedCode = code.toUpperCase();
-    renderContent();
-  });
-  row.appendChild(codeInput);
-  row.appendChild(applyBtn);
-  discCard.appendChild(row);
-
-  if(AC_DISCOUNT_PERCENT <= 0){
-    const hint = document.createElement('div');
-    hint.className = 'discount-hint';
-    hint.textContent = 'No discount is currently configured.';
-    discCard.appendChild(hint);
-  } else if(acAppliedCode){
-    const {discountAmt} = calcACTotals();
-    const cappedNote = discountAmt >= AC_DISCOUNT_MAX_AED ? ` (capped at AED ${AC_DISCOUNT_MAX_AED})` : '';
-    const appliedRow = document.createElement('div');
-    appliedRow.className = 'discount-applied';
-    appliedRow.innerHTML = `<span>Code "${acAppliedCode}" applied — ${AC_DISCOUNT_PERCENT}% off${cappedNote}</span>`;
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'remove-discount';
-    removeBtn.textContent = 'Remove';
-    removeBtn.addEventListener('click', () => { acAppliedCode = null; renderContent(); });
-    appliedRow.appendChild(removeBtn);
-    discCard.appendChild(appliedRow);
-  }
-  wrap.appendChild(discCard);
 
   return wrap;
 }
@@ -1155,8 +1178,8 @@ document.getElementById('clearBtn').addEventListener('click', () => {
 document.getElementById('confirmBtn').addEventListener('click', () => {
   const errorEl = document.getElementById('confirmError');
   errorEl.textContent = '';
-  if(!bookingRef.trim()){
-    errorEl.textContent = 'Enter the booking reference number first.';
+  if(!/^[A-Za-z0-9]{6}$/.test(bookingRef.trim())){
+    errorEl.textContent = 'Enter a 6-character booking reference (letters/numbers only).';
     return;
   }
 
@@ -1176,6 +1199,7 @@ document.getElementById('confirmBtn').addEventListener('click', () => {
       finalTotal: newTotal
     };
   } else {
+    if(!acAppliedCode){ errorEl.textContent = 'Select your crew code first.'; return; }
     const selected = flattenAC().filter(it => acQty[it.id] > 0 && it.price);
     if(selected.length === 0){ errorEl.textContent = 'Select at least one item.'; return; }
     const {subtotal, finalTotal} = calcACTotals();
@@ -1183,7 +1207,7 @@ document.getElementById('confirmBtn').addEventListener('click', () => {
       type: 'ac',
       bookingRef: bookingRef.trim(),
       timestamp: new Date().toISOString(),
-      items: selected.map(it => ({ name: it.name, qty: acQty[it.id], price: it.price, lineTotal: acQty[it.id]*it.price })),
+      items: selected.map(it => ({ name: it.name, qty: acQty[it.id], price: it.price, lineTotal: acQty[it.id]*it.price, category: AC_ITEM_CATEGORY[it.id], stepper: !!it.stepper })),
       subtotal,
       discountCode: acAppliedCode || null,
       discountPercent: acAppliedCode ? AC_DISCOUNT_PERCENT : 0,
@@ -1206,18 +1230,33 @@ function resetEntryForm(){
   renderContent();
 }
 
+function acLineLabel(i){
+  if(i.stepper){
+    return `${i.name} ${i.qty} unit${i.qty === 1 ? '' : 's'}`;
+  }
+  const match = i.name.match(/(\d+)/);
+  const n = match ? match[1] : i.qty;
+  return `${i.category} ${n} unit${Number(n) === 1 ? '' : 's'}`;
+}
+
 function buildAgentSummary(record){
   const d = new Date(record.timestamp);
   const lines = [];
   lines.push(`Booking Ref: ${record.bookingRef}`);
   lines.push(`Service: ${record.type === 'ac' ? 'AC Cleaning' : 'Furniture Cleaning'}`);
+  if(record.type === 'ac' && record.discountCode){
+    lines.push(`Crew Code: ${record.discountCode}`);
+  }
   lines.push('Items to add on the app:');
-  record.items.forEach(i => lines.push(`- ${i.qty}x ${i.name} — ${fmt(i.lineTotal)}`));
+  if(record.type === 'ac'){
+    record.items.forEach(i => lines.push(`- ${acLineLabel(i)} — ${fmt(i.lineTotal)}`));
+  } else {
+    record.items.forEach(i => lines.push(`- ${i.qty}x ${i.name} — ${fmt(i.lineTotal)}`));
+  }
   lines.push(`Subtotal: ${fmt(record.subtotal)}`);
   if(record.discountPercent > 0){
     const discountAmt = record.subtotal - record.finalTotal;
-    const codeNote = record.discountCode ? `Code: ${record.discountCode} — ` : '';
-    lines.push(`Discount: ${codeNote}${record.discountPercent}%${record.type === 'ac' ? ` (max AED ${AC_DISCOUNT_MAX_AED})` : ''} — ${fmt(discountAmt)} off`);
+    lines.push(`Discount: ${record.discountPercent}%${record.type === 'ac' ? ` (max AED ${AC_DISCOUNT_MAX_AED})` : ''} — ${fmt(discountAmt)} off`);
   }
   lines.push(`Final Total: ${fmt(record.finalTotal)}`);
   lines.push(`Confirmed: ${d.toLocaleDateString()} ${d.toLocaleTimeString()}`);
