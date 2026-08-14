@@ -192,6 +192,20 @@
   .crew-code-status{margin-top:9px;font-size:12.5px;color:var(--green-700);font-weight:600;}
   .crew-code-missing{margin-top:2px;font-size:11.5px;color:var(--ink-soft);}
 
+  .booking-action-card{
+    background:var(--white);border:1px solid var(--sky-500);border-radius:var(--radius);
+    padding:13px;margin-bottom:16px;
+  }
+  .booking-action-card h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:0.6px;color:var(--navy-900);}
+  .booking-action-row{display:flex;gap:8px;}
+  .booking-action-btn{
+    flex:1;padding:12px 10px;border-radius:10px;border:1px solid var(--line);
+    background:var(--white);color:var(--ink-soft);font-size:13px;font-weight:700;
+    cursor:pointer;text-align:center;line-height:1.3;
+  }
+  .booking-action-btn .sub{display:block;font-size:10.5px;font-weight:500;margin-top:2px;}
+  .booking-action-btn.selected{background:var(--sky-500);border-color:var(--sky-500);color:var(--white);}
+
   .summary-bar{
     position:fixed;bottom:0;left:0;right:0;
     background:var(--teal-900);color:var(--white);
@@ -509,6 +523,7 @@ let bookingRef = '';
 let furnQty = {};
 let acQty = {};
 let acAppliedCode = null;
+let acBookingAction = null; // 'update' | 'new'
 let editMode = false;
 let adminPin = DEFAULT_PIN;
 let editPinDraft = DEFAULT_PIN;
@@ -547,6 +562,7 @@ async function writeLogEntry(record){
     timestamp: record.timestamp,
     bookingRef: record.bookingRef,
     type: record.type,
+    bookingAction: record.bookingAction || '',
     items: record.items.map(i => `${i.qty}x ${i.name}`).join('; '),
     subtotal: record.subtotal,
     discountCode: record.discountCode || '',
@@ -877,6 +893,41 @@ function renderACSection(){
   quoteNote.textContent = 'AC Maintenance and AC Repair & Installation are quoted separately and are not included in this calculator.';
   wrap.appendChild(quoteNote);
 
+  const actionCard = document.createElement('div');
+  actionCard.className = 'booking-action-card';
+  actionCard.style.marginTop = '14px';
+  actionCard.innerHTML = '<h4>Booking Action</h4>';
+  const actionRow = document.createElement('div');
+  actionRow.className = 'booking-action-row';
+
+  const updateBtn = document.createElement('button');
+  updateBtn.className = 'booking-action-btn' + (acBookingAction === 'update' ? ' selected' : '');
+  updateBtn.innerHTML = 'Update Same Booking<span class="sub">Add to the existing booking ref</span>';
+  updateBtn.addEventListener('click', () => {
+    acBookingAction = (acBookingAction === 'update') ? null : 'update';
+    renderContent();
+  });
+
+  const newBtn = document.createElement('button');
+  newBtn.className = 'booking-action-btn' + (acBookingAction === 'new' ? ' selected' : '');
+  newBtn.innerHTML = 'Create New Booking<span class="sub">Log this as a separate booking</span>';
+  newBtn.addEventListener('click', () => {
+    acBookingAction = (acBookingAction === 'new') ? null : 'new';
+    renderContent();
+  });
+
+  actionRow.appendChild(updateBtn);
+  actionRow.appendChild(newBtn);
+  actionCard.appendChild(actionRow);
+  if(!acBookingAction){
+    const missing = document.createElement('div');
+    missing.className = 'crew-code-missing';
+    missing.style.marginTop = '8px';
+    missing.textContent = 'Required before you can confirm this entry.';
+    actionCard.appendChild(missing);
+  }
+  wrap.appendChild(actionCard);
+
   return wrap;
 }
 
@@ -1144,7 +1195,7 @@ function selectType(type){
   } else {
     selectedType = type;
     // reset the other type's quantities so a stale selection can't sneak into a new entry
-    if(type === 'furniture'){ flattenAC().forEach(it => acQty[it.id] = 0); acAppliedCode = null; }
+    if(type === 'furniture'){ flattenAC().forEach(it => acQty[it.id] = 0); acAppliedCode = null; acBookingAction = null; }
     if(type === 'ac'){ flattenFurniture().forEach(it => furnQty[it.id] = 0); }
   }
   document.getElementById('toggleFurniture').classList.toggle('active', selectedType === 'furniture');
@@ -1219,6 +1270,7 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   flattenFurniture().forEach(it => furnQty[it.id] = 0);
   flattenAC().forEach(it => acQty[it.id] = 0);
   acAppliedCode = null;
+  acBookingAction = null;
   bookingRef = '';
   renderContent();
 });
@@ -1247,6 +1299,7 @@ document.getElementById('confirmBtn').addEventListener('click', () => {
       finalTotal: newTotal
     };
   } else {
+    if(!acBookingAction){ errorEl.textContent = 'Select Update Same Booking or Create New Booking first.'; return; }
     if(!acAppliedCode){ errorEl.textContent = 'Select your crew code first.'; return; }
     const selected = flattenAC().filter(it => acQty[it.id] > 0 && it.price);
     if(selected.length === 0){ errorEl.textContent = 'Select at least one item.'; return; }
@@ -1255,6 +1308,7 @@ document.getElementById('confirmBtn').addEventListener('click', () => {
       type: 'ac',
       bookingRef: bookingRef.trim(),
       timestamp: new Date().toISOString(),
+      bookingAction: acBookingAction,
       items: selected.map(it => ({ name: it.name, qty: acQty[it.id], price: it.price, lineTotal: acQty[it.id]*it.price, category: AC_ITEM_CATEGORY[it.id], stepper: !!it.stepper })),
       subtotal,
       discountCode: acAppliedCode || null,
@@ -1271,6 +1325,7 @@ function resetEntryForm(){
   flattenFurniture().forEach(it => furnQty[it.id] = 0);
   flattenAC().forEach(it => acQty[it.id] = 0);
   acAppliedCode = null;
+  acBookingAction = null;
   bookingRef = '';
   selectedType = null;
   document.getElementById('toggleFurniture').classList.remove('active');
@@ -1290,6 +1345,9 @@ function acLineLabel(i){
 function buildAgentSummary(record){
   const d = new Date(record.timestamp);
   const lines = [];
+  if(record.type === 'ac' && record.bookingAction){
+    lines.push(record.bookingAction === 'update' ? 'ACTION: UPDATE EXISTING BOOKING' : 'ACTION: CREATE NEW BOOKING');
+  }
   lines.push(`Booking Ref: ${record.bookingRef}`);
   lines.push(`Service: ${record.type === 'ac' ? 'AC Cleaning' : 'Furniture Cleaning'}`);
   if(record.type === 'ac' && record.discountCode){
@@ -1500,10 +1558,11 @@ function showEntrySuccess(panel, overlay, record, text, existingPre){
 }
 
 function exportLogCSV(){
-  let csv = 'Type,Booking Ref,Date,Time,Items,Subtotal (AED),Discount Code,Discount %,Final Total (AED)\n';
+  let csv = 'Type,Booking Action,Booking Ref,Date,Time,Items,Subtotal (AED),Discount Code,Discount %,Final Total (AED)\n';
   cachedLogEntries.forEach(r => {
     const d = new Date(r.timestamp);
-    csv += `"${r.type}","${r.bookingRef}","${d.toLocaleDateString()}","${d.toLocaleTimeString()}","${r.items}","${r.subtotal}","${r.discountCode || ''}","${r.discountPercent || 0}","${r.finalTotal}"\n`;
+    const actionLabel = r.bookingAction === 'update' ? 'Update Same Booking' : (r.bookingAction === 'new' ? 'Create New Booking' : '');
+    csv += `"${r.type}","${actionLabel}","${r.bookingRef}","${d.toLocaleDateString()}","${d.toLocaleTimeString()}","${r.items}","${r.subtotal}","${r.discountCode || ''}","${r.discountPercent || 0}","${r.finalTotal}"\n`;
   });
   const blob = new Blob([csv], {type:'text/csv'});
   const url = URL.createObjectURL(blob);
@@ -1558,12 +1617,15 @@ function showLogPanel(){
         const codeNote = r.discountCode ? `Code ${r.discountCode} — ` : '';
         discRow = `<div class="log-entry-discount">${codeNote}Subtotal ${fmt(r.subtotal)} → ${r.discountPercent}% off</div>`;
       }
+      const actionLabel = r.bookingAction === 'update' ? 'Update Same Booking' : (r.bookingAction === 'new' ? 'Create New Booking' : '');
+      const actionRow = actionLabel ? `<div class="log-entry-date">${actionLabel}</div>` : '';
       entry.innerHTML = `
         <div class="log-entry-top">
           <span><span class="log-entry-type ${r.type === 'ac' ? 'ac' : ''}">${r.type === 'ac' ? 'AC' : 'Furniture'}</span>${r.bookingRef}</span>
           <span>${fmt(r.finalTotal)}</span>
         </div>
         <div class="log-entry-date">${d.toLocaleDateString()} · ${d.toLocaleTimeString()}</div>
+        ${actionRow}
         <div class="log-entry-items">${r.items}</div>
         ${discRow}
       `;
