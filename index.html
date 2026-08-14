@@ -523,7 +523,7 @@ let bookingRef = '';
 let furnQty = {};
 let acQty = {};
 let acAppliedCode = null;
-let acBookingAction = null; // 'update' | 'new'
+let furnBookingAction = null; // 'update' | 'new'
 let editMode = false;
 let adminPin = DEFAULT_PIN;
 let editPinDraft = DEFAULT_PIN;
@@ -762,6 +762,41 @@ function renderFurnitureSection(){
     wrap.appendChild(section);
   });
 
+  const actionCard = document.createElement('div');
+  actionCard.className = 'booking-action-card';
+  actionCard.style.marginTop = '14px';
+  actionCard.innerHTML = '<h4>Booking Action</h4>';
+  const actionRow = document.createElement('div');
+  actionRow.className = 'booking-action-row';
+
+  const updateBtn = document.createElement('button');
+  updateBtn.className = 'booking-action-btn' + (furnBookingAction === 'update' ? ' selected' : '');
+  updateBtn.innerHTML = 'Update Same Booking<span class="sub">Add to the existing booking ref</span>';
+  updateBtn.addEventListener('click', () => {
+    furnBookingAction = (furnBookingAction === 'update') ? null : 'update';
+    renderContent();
+  });
+
+  const newBtn = document.createElement('button');
+  newBtn.className = 'booking-action-btn' + (furnBookingAction === 'new' ? ' selected' : '');
+  newBtn.innerHTML = 'Create New Booking<span class="sub">Log this as a separate booking</span>';
+  newBtn.addEventListener('click', () => {
+    furnBookingAction = (furnBookingAction === 'new') ? null : 'new';
+    renderContent();
+  });
+
+  actionRow.appendChild(updateBtn);
+  actionRow.appendChild(newBtn);
+  actionCard.appendChild(actionRow);
+  if(!furnBookingAction){
+    const missing = document.createElement('div');
+    missing.className = 'crew-code-missing';
+    missing.style.marginTop = '8px';
+    missing.textContent = 'Required before you can confirm this entry.';
+    actionCard.appendChild(missing);
+  }
+  wrap.appendChild(actionCard);
+
   return wrap;
 }
 
@@ -892,41 +927,6 @@ function renderACSection(){
   quoteNote.className = 'note-quote';
   quoteNote.textContent = 'AC Maintenance and AC Repair & Installation are quoted separately and are not included in this calculator.';
   wrap.appendChild(quoteNote);
-
-  const actionCard = document.createElement('div');
-  actionCard.className = 'booking-action-card';
-  actionCard.style.marginTop = '14px';
-  actionCard.innerHTML = '<h4>Booking Action</h4>';
-  const actionRow = document.createElement('div');
-  actionRow.className = 'booking-action-row';
-
-  const updateBtn = document.createElement('button');
-  updateBtn.className = 'booking-action-btn' + (acBookingAction === 'update' ? ' selected' : '');
-  updateBtn.innerHTML = 'Update Same Booking<span class="sub">Add to the existing booking ref</span>';
-  updateBtn.addEventListener('click', () => {
-    acBookingAction = (acBookingAction === 'update') ? null : 'update';
-    renderContent();
-  });
-
-  const newBtn = document.createElement('button');
-  newBtn.className = 'booking-action-btn' + (acBookingAction === 'new' ? ' selected' : '');
-  newBtn.innerHTML = 'Create New Booking<span class="sub">Log this as a separate booking</span>';
-  newBtn.addEventListener('click', () => {
-    acBookingAction = (acBookingAction === 'new') ? null : 'new';
-    renderContent();
-  });
-
-  actionRow.appendChild(updateBtn);
-  actionRow.appendChild(newBtn);
-  actionCard.appendChild(actionRow);
-  if(!acBookingAction){
-    const missing = document.createElement('div');
-    missing.className = 'crew-code-missing';
-    missing.style.marginTop = '8px';
-    missing.textContent = 'Required before you can confirm this entry.';
-    actionCard.appendChild(missing);
-  }
-  wrap.appendChild(actionCard);
 
   return wrap;
 }
@@ -1195,8 +1195,8 @@ function selectType(type){
   } else {
     selectedType = type;
     // reset the other type's quantities so a stale selection can't sneak into a new entry
-    if(type === 'furniture'){ flattenAC().forEach(it => acQty[it.id] = 0); acAppliedCode = null; acBookingAction = null; }
-    if(type === 'ac'){ flattenFurniture().forEach(it => furnQty[it.id] = 0); }
+    if(type === 'furniture'){ flattenAC().forEach(it => acQty[it.id] = 0); acAppliedCode = null; }
+    if(type === 'ac'){ flattenFurniture().forEach(it => furnQty[it.id] = 0); furnBookingAction = null; }
   }
   document.getElementById('toggleFurniture').classList.toggle('active', selectedType === 'furniture');
   document.getElementById('toggleAC').classList.toggle('active', selectedType === 'ac');
@@ -1270,7 +1270,7 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   flattenFurniture().forEach(it => furnQty[it.id] = 0);
   flattenAC().forEach(it => acQty[it.id] = 0);
   acAppliedCode = null;
-  acBookingAction = null;
+  furnBookingAction = null;
   bookingRef = '';
   renderContent();
 });
@@ -1285,6 +1285,7 @@ document.getElementById('confirmBtn').addEventListener('click', () => {
 
   let record;
   if(selectedType === 'furniture'){
+    if(!furnBookingAction){ errorEl.textContent = 'Select Update Same Booking or Create New Booking first.'; return; }
     const selected = flattenFurniture().filter(it => furnQty[it.id] > 0 && it.newPrice);
     if(selected.length === 0){ errorEl.textContent = 'Select at least one item.'; return; }
     const {appTotal, newTotal} = calcFurnitureTotals();
@@ -1293,13 +1294,13 @@ document.getElementById('confirmBtn').addEventListener('click', () => {
       type: 'furniture',
       bookingRef: bookingRef.trim(),
       timestamp: new Date().toISOString(),
+      bookingAction: furnBookingAction,
       items: selected.map(it => ({ name: it.name, qty: furnQty[it.id], price: it.newPrice, lineTotal: furnQty[it.id]*it.newPrice })),
       subtotal: appTotal,
       discountPercent,
       finalTotal: newTotal
     };
   } else {
-    if(!acBookingAction){ errorEl.textContent = 'Select Update Same Booking or Create New Booking first.'; return; }
     if(!acAppliedCode){ errorEl.textContent = 'Select your crew code first.'; return; }
     const selected = flattenAC().filter(it => acQty[it.id] > 0 && it.price);
     if(selected.length === 0){ errorEl.textContent = 'Select at least one item.'; return; }
@@ -1308,7 +1309,6 @@ document.getElementById('confirmBtn').addEventListener('click', () => {
       type: 'ac',
       bookingRef: bookingRef.trim(),
       timestamp: new Date().toISOString(),
-      bookingAction: acBookingAction,
       items: selected.map(it => ({ name: it.name, qty: acQty[it.id], price: it.price, lineTotal: acQty[it.id]*it.price, category: AC_ITEM_CATEGORY[it.id], stepper: !!it.stepper })),
       subtotal,
       discountCode: acAppliedCode || null,
@@ -1325,7 +1325,7 @@ function resetEntryForm(){
   flattenFurniture().forEach(it => furnQty[it.id] = 0);
   flattenAC().forEach(it => acQty[it.id] = 0);
   acAppliedCode = null;
-  acBookingAction = null;
+  furnBookingAction = null;
   bookingRef = '';
   selectedType = null;
   document.getElementById('toggleFurniture').classList.remove('active');
@@ -1345,7 +1345,7 @@ function acLineLabel(i){
 function buildAgentSummary(record){
   const d = new Date(record.timestamp);
   const lines = [];
-  if(record.type === 'ac' && record.bookingAction){
+  if(record.bookingAction){
     lines.push(record.bookingAction === 'update' ? 'ACTION: UPDATE EXISTING BOOKING' : 'ACTION: CREATE NEW BOOKING');
   }
   lines.push(`Booking Ref: ${record.bookingRef}`);
