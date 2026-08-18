@@ -189,6 +189,12 @@
     background:var(--white);color:var(--ink-soft);font-size:13px;font-weight:700;cursor:pointer;
   }
   .crew-chip.selected{background:var(--sky-500);border-color:var(--sky-500);color:var(--white);}
+  .crew-login-form{display:flex;flex-wrap:wrap;gap:8px;}
+  .crew-login-input{
+    flex:1;min-width:100px;padding:10px 12px;border:1px solid var(--line);
+    border-radius:10px;font-size:14px;
+  }
+  .crew-login-input:focus{outline:2px solid var(--sky-500);border-color:var(--sky-500);}
   .crew-code-status{margin-top:9px;font-size:12.5px;color:var(--green-700);font-weight:600;}
   .crew-code-missing{margin-top:2px;font-size:11.5px;color:var(--ink-soft);}
 
@@ -395,7 +401,7 @@
 // BACKEND — this calculator reads/writes a shared Firestore database.
 // =====================================================================
 const firebaseConfig = {
-  apiKey: "AIzaSyBy•••••••••••••••••••••••••••••••",
+  apiKey: "AIzaSyByx4RuOFth1Wag7LycBvC8dmBk_Yll9-c",
   authDomain: "justlife-upsell.firebaseapp.com",
   projectId: "justlife-upsell",
   storageBucket: "justlife-upsell.firebasestorage.app",
@@ -505,25 +511,20 @@ function flattenAC(){ return AC_CATALOG.flatMap(c => c.items); }
 const AC_ITEM_CATEGORY = {};
 AC_CATALOG.forEach(cat => cat.items.forEach(it => { AC_ITEM_CATEGORY[it.id] = cat.category; }));
 
-// Crew codes — each crew clicks their own code instead of typing a discount code.
-// To add/remove/rename a crew, edit this list and re-upload the file.
-const CREW_CODES = [
-  { name: 'Tahir',    code: 'TAHIR25AC' },
-  { name: 'Jerver',   code: 'JERVER25AC' },
-  { name: 'Nicholas', code: 'NICHOLAS25AC' },
-  { name: 'Nelson',   code: 'NELSON25AC' },
-  { name: 'Chris',    code: 'CHRIS25AC' },
-];
-
 const DEFAULT_PIN = '1234';
+const CREW_LOGIN_KEY = 'justlife_crew_login_v1'; // localStorage key — keeps a crew member logged in on this device
 
 // ---------- State ----------
 let selectedType = null; // 'furniture' | 'ac' | null
 let bookingRef = '';
 let furnQty = {};
 let acQty = {};
-let acAppliedCode = null;
 let furnBookingAction = null; // 'update' | 'new'
+let crews = []; // [{ id, name, pin }] — loaded from Firestore 'crews' collection
+let crewsToDelete = []; // crew ids removed in Edit mode, pending Save
+let loggedInCrew = null; // { id, name } — persists across bookings on this device
+let crewLoginDraft = { name: '', pin: '' };
+let crewLoginError = '';
 let editMode = false;
 let adminPin = DEFAULT_PIN;
 let editPinDraft = DEFAULT_PIN;
@@ -557,12 +558,47 @@ async function loadLog(){
   return { ok: true, entries };
 }
 
+async function loadCrews(){
+  try{
+    const snap = await db.collection('crews').orderBy('name').get();
+    const list = [];
+    snap.forEach(d => list.push({ id: d.id, name: d.data().name || '', pin: String(d.data().pin || ''), code: d.data().code || '' }));
+    return { ok: true, crews: list };
+  }catch(e){
+    console.error('Crew load failed (check Firestore rules for the crews collection):', e);
+    return { ok: false, crews: [] };
+  }
+}
+
+async function writeCrews(pin, crewList, deleteIds){
+  try{
+    const batch = db.batch();
+    crewList.forEach(c => {
+      const name = (c.name || '').trim();
+      const pinVal = (c.pin || '').trim();
+      const codeVal = (c.code || '').trim();
+      if(!name || !pinVal || !codeVal) return; // skip incomplete rows — not saved until all fields are filled
+      const ref = (c.id && !c.id.startsWith('new_')) ? db.collection('crews').doc(c.id) : db.collection('crews').doc();
+      batch.set(ref, { name, pin: pinVal, code: codeVal, pinProof: pin });
+    });
+    deleteIds.forEach(id => {
+      if(id && !id.startsWith('new_')) batch.delete(db.collection('crews').doc(id));
+    });
+    await batch.commit();
+    return { ok: true };
+  }catch(e){
+    return { ok: false, error: 'Incorrect PIN or permission denied.' };
+  }
+}
+
 async function writeLogEntry(record){
   await db.collection('log').add({
     timestamp: record.timestamp,
     bookingRef: record.bookingRef,
     type: record.type,
     bookingAction: record.bookingAction || '',
+    crewName: record.crewName || '',
+    crewCode: record.crewCode || '',
     items: record.items.map(i => `${i.qty}x ${i.name}`).join('; '),
     subtotal: record.subtotal,
     discountCode: record.discountCode || '',
@@ -611,7 +647,7 @@ function applyServerPrices(prices){
 
 async function init(){
   try{
-    const [dataRes, logRes] = await Promise.all([loadPricesAndConfig(), loadLog()]);
+    const [dataRes, logRes, crewsRes] = await Promise.all([loadPricesAndConfig(), loadLog(), loadCrews()]);
     if(dataRes && dataRes.ok){
       applyServerPrices(dataRes.prices);
       if(dataRes.config){
@@ -624,11 +660,61 @@ async function init(){
       loadError = true;
     }
     if(logRes && logRes.ok) cachedLogEntries = logRes.entries;
+    if(crewsRes && crewsRes.ok){
+      crews = crewsRes.crews;
+      restoreCrewLogin();
+    }
     dataLoaded = true;
   }catch(e){
     loadError = true;
   }
   updateLogButton();
+  renderContent();
+}
+
+function restoreCrewLogin(){
+  try{
+    const raw = localStorage.getItem(CREW_LOGIN_KEY);
+    if(!raw) return;
+    const saved = JSON.parse(raw);
+    const match = crews.find(c => c.id === saved.id);
+    if(match){
+      loggedInCrew = { id: match.id, name: match.name, code: match.code };
+    } else {
+      localStorage.removeItem(CREW_LOGIN_KEY);
+    }
+  }catch(e){
+    localStorage.removeItem(CREW_LOGIN_KEY);
+  }
+}
+
+function attemptCrewLogin(){
+  crewLoginError = '';
+  const nameInput = (crewLoginDraft.name || '').trim();
+  const pinInput = (crewLoginDraft.pin || '').trim();
+  if(!nameInput || !pinInput){
+    crewLoginError = 'Enter both your name and PIN.';
+    return;
+  }
+  if(crews.length === 0){
+    crewLoginError = 'No crew logins are set up yet — ask your manager to add crews in Edit Prices.';
+    return;
+  }
+  const match = crews.find(c => c.name.trim().toLowerCase() === nameInput.toLowerCase() && c.pin === pinInput);
+  if(!match){
+    crewLoginError = 'Name or PIN not recognized.';
+    return;
+  }
+  loggedInCrew = { id: match.id, name: match.name, code: match.code };
+  crewLoginDraft = { name: '', pin: '' };
+  crewLoginError = '';
+  try{ localStorage.setItem(CREW_LOGIN_KEY, JSON.stringify(loggedInCrew)); }catch(e){}
+  renderContent();
+}
+
+function crewLogout(){
+  loggedInCrew = null;
+  try{ localStorage.removeItem(CREW_LOGIN_KEY); }catch(e){}
   renderContent();
 }
 
@@ -652,7 +738,7 @@ function calcACTotals(){
     const q = acQty[it.id] || 0;
     if(q > 0 && it.price){ subtotal += q*it.price; count += q; }
   });
-  const discountAmt = (acAppliedCode && AC_DISCOUNT_PERCENT > 0) ? Math.min(subtotal * AC_DISCOUNT_PERCENT / 100, AC_DISCOUNT_MAX_AED) : 0;
+  const discountAmt = (loggedInCrew && AC_DISCOUNT_PERCENT > 0) ? Math.min(subtotal * AC_DISCOUNT_PERCENT / 100, AC_DISCOUNT_MAX_AED) : 0;
   const finalTotal = subtotal - discountAmt;
   return {subtotal, discountAmt, finalTotal, count};
 }
@@ -810,39 +896,18 @@ function renderACSection(){
 
   const note = document.createElement('div');
   note.className = 'base-note ac';
-  note.innerHTML = 'Select your crew code below, then tick the AC service(s) booked. <span style="color:var(--amber);font-weight:600;">No price set</span> items aren\'t priced yet.';
+  note.innerHTML = 'Tick the AC service(s) booked. <span style="color:var(--amber);font-weight:600;">No price set</span> items aren\'t priced yet.';
   wrap.appendChild(note);
 
   const crewCard = document.createElement('div');
   crewCard.className = 'crew-code-card';
-  crewCard.innerHTML = '<h4>Crew Code</h4>';
-  const chipRow = document.createElement('div');
-  chipRow.className = 'crew-chip-row';
-  CREW_CODES.forEach(crew => {
-    const chip = document.createElement('button');
-    chip.className = 'crew-chip' + (acAppliedCode === crew.code ? ' selected' : '');
-    chip.textContent = crew.name;
-    chip.addEventListener('click', () => {
-      acAppliedCode = (acAppliedCode === crew.code) ? null : crew.code;
-      renderContent();
-    });
-    chipRow.appendChild(chip);
-  });
-  crewCard.appendChild(chipRow);
-  if(acAppliedCode){
-    const selectedCrew = CREW_CODES.find(c => c.code === acAppliedCode);
-    const {discountAmt} = calcACTotals();
-    const cappedNote = discountAmt >= AC_DISCOUNT_MAX_AED ? ` (capped at AED ${AC_DISCOUNT_MAX_AED})` : '';
-    const status = document.createElement('div');
-    status.className = 'crew-code-status';
-    status.textContent = `${selectedCrew ? selectedCrew.name : acAppliedCode} selected — ${AC_DISCOUNT_PERCENT}% off${cappedNote} will be applied.`;
-    crewCard.appendChild(status);
-  } else {
-    const missing = document.createElement('div');
-    missing.className = 'crew-code-missing';
-    missing.textContent = 'Required before you can confirm this entry.';
-    crewCard.appendChild(missing);
-  }
+  crewCard.innerHTML = '<h4>Crew Discount</h4>';
+  const {discountAmt} = calcACTotals();
+  const cappedNote = discountAmt >= AC_DISCOUNT_MAX_AED ? ` (capped at AED ${AC_DISCOUNT_MAX_AED})` : '';
+  const status = document.createElement('div');
+  status.className = 'crew-code-status';
+  status.textContent = `${AC_DISCOUNT_PERCENT}% crew discount${cappedNote} will be applied for ${loggedInCrew.name}.`;
+  crewCard.appendChild(status);
   wrap.appendChild(crewCard);
 
   AC_CATALOG.forEach(cat => {
@@ -934,9 +999,9 @@ function renderACSection(){
 function renderContent(){
   const content = document.getElementById('content');
   content.innerHTML = '';
-  document.querySelector('.service-toggle').style.display = editMode ? 'none' : 'flex';
 
   if(loadError){
+    document.querySelector('.service-toggle').style.display = 'none';
     const hint = document.createElement('div');
     hint.className = 'empty-hint';
     hint.textContent = "Can't reach the shared price list. Check your internet connection and reload the page.";
@@ -946,6 +1011,7 @@ function renderContent(){
   }
 
   if(!dataLoaded){
+    document.querySelector('.service-toggle').style.display = 'none';
     const hint = document.createElement('div');
     hint.className = 'empty-hint';
     hint.textContent = 'Loading pricing…';
@@ -955,10 +1021,21 @@ function renderContent(){
   }
 
   if(editMode){
+    document.querySelector('.service-toggle').style.display = 'none';
     content.appendChild(renderEditMode());
     document.getElementById('summaryBar').style.display = 'none';
     return;
   }
+
+  if(!loggedInCrew){
+    document.querySelector('.service-toggle').style.display = 'none';
+    content.appendChild(renderCrewLoginGate());
+    document.getElementById('summaryBar').style.display = 'none';
+    return;
+  }
+
+  document.querySelector('.service-toggle').style.display = 'flex';
+  content.appendChild(renderCrewStatusBar());
 
   if(!selectedType){
     const hint = document.createElement('div');
@@ -973,6 +1050,80 @@ function renderContent(){
 
   document.getElementById('summaryBar').style.display = selectedType ? 'block' : 'none';
   updateSummary();
+}
+
+function renderCrewStatusBar(){
+  const bar = document.createElement('div');
+  bar.className = 'crew-code-card';
+  bar.style.display = 'flex';
+  bar.style.alignItems = 'center';
+  bar.style.justifyContent = 'space-between';
+  bar.style.padding = '10px 14px';
+  bar.style.marginBottom = '14px';
+  const label = document.createElement('div');
+  label.className = 'crew-code-status';
+  label.style.margin = '0';
+  label.textContent = `Logged in as ${loggedInCrew.name}`;
+  const switchBtn = document.createElement('button');
+  switchBtn.className = 'remove-discount';
+  switchBtn.textContent = 'Switch crew';
+  switchBtn.addEventListener('click', crewLogout);
+  bar.appendChild(label);
+  bar.appendChild(switchBtn);
+  return bar;
+}
+
+function renderCrewLoginGate(){
+  const wrap = document.createElement('div');
+
+  const note = document.createElement('div');
+  note.className = 'base-note';
+  note.textContent = 'Log in with your name and PIN to start logging bookings. You\'ll stay logged in on this device for both AC and Furniture entries.';
+  wrap.appendChild(note);
+
+  const crewCard = document.createElement('div');
+  crewCard.className = 'crew-code-card';
+  crewCard.innerHTML = '<h4>Crew Login</h4>';
+
+  const form = document.createElement('div');
+  form.className = 'crew-login-form';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.placeholder = 'Your name';
+  nameInput.className = 'crew-login-input';
+  nameInput.value = crewLoginDraft.name;
+  nameInput.addEventListener('input', e => { crewLoginDraft.name = e.target.value; });
+
+  const pinInput = document.createElement('input');
+  pinInput.type = 'password';
+  pinInput.inputMode = 'numeric';
+  pinInput.placeholder = 'PIN';
+  pinInput.className = 'crew-login-input';
+  pinInput.value = crewLoginDraft.pin;
+  pinInput.addEventListener('input', e => { crewLoginDraft.pin = e.target.value; });
+  pinInput.addEventListener('keydown', e => { if(e.key === 'Enter') attemptCrewLogin(); });
+
+  const loginBtn = document.createElement('button');
+  loginBtn.className = 'apply-btn';
+  loginBtn.textContent = 'Log In';
+  loginBtn.addEventListener('click', attemptCrewLogin);
+
+  form.appendChild(nameInput);
+  form.appendChild(pinInput);
+  form.appendChild(loginBtn);
+  crewCard.appendChild(form);
+
+  if(crewLoginError){
+    const err = document.createElement('div');
+    err.className = 'crew-code-missing';
+    err.style.color = '#c0392b';
+    err.textContent = crewLoginError;
+    crewCard.appendChild(err);
+  }
+
+  wrap.appendChild(crewCard);
+  return wrap;
 }
 
 function renderEditMode(){
@@ -1114,6 +1265,80 @@ function renderEditMode(){
   discNote.textContent = `AC discount is fixed at ${AC_DISCOUNT_PERCENT}% (max AED ${AC_DISCOUNT_MAX_AED}) and isn't editable here by design.`;
   wrap.appendChild(discNote);
 
+  // ---- Crew Logins management ----
+  const crewTitle = document.createElement('div');
+  crewTitle.className = 'section-title ac';
+  crewTitle.innerHTML = '<span class="dot"></span> AC Crew Logins';
+  wrap.appendChild(crewTitle);
+
+  const crewSubNote = document.createElement('div');
+  crewSubNote.className = 'base-note ac';
+  crewSubNote.textContent = 'Each crew member logs in with their name and PIN. The Crew Code is what shows up on the confirmed booking summary — set one per crew (e.g. TAHIR25AC). PINs and codes are visible to managers here, so keep this device secure.';
+  wrap.appendChild(crewSubNote);
+
+  const crewListWrap = document.createElement('div');
+  crewListWrap.id = 'crewEditList';
+
+  function renderCrewRows(){
+    crewListWrap.innerHTML = '';
+    crews.forEach((c, idx) => {
+      const row = document.createElement('div');
+      row.className = 'item-card';
+
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.placeholder = 'Crew name';
+      nameInput.className = 'crew-login-input';
+      nameInput.value = c.name;
+      nameInput.addEventListener('input', e => { crews[idx].name = e.target.value; });
+
+      const pinInput = document.createElement('input');
+      pinInput.type = 'text';
+      pinInput.placeholder = 'PIN';
+      pinInput.className = 'crew-login-input';
+      pinInput.style.maxWidth = '90px';
+      pinInput.value = c.pin;
+      pinInput.addEventListener('input', e => { crews[idx].pin = e.target.value; });
+
+      const codeInput = document.createElement('input');
+      codeInput.type = 'text';
+      codeInput.placeholder = 'Crew code';
+      codeInput.className = 'crew-login-input';
+      codeInput.style.maxWidth = '140px';
+      codeInput.style.textTransform = 'uppercase';
+      codeInput.value = c.code || '';
+      codeInput.addEventListener('input', e => { crews[idx].code = e.target.value; });
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'select-toggle';
+      removeBtn.textContent = 'Remove';
+      removeBtn.addEventListener('click', () => {
+        const removed = crews.splice(idx, 1)[0];
+        if(removed && removed.id && !removed.id.startsWith('new_')) crewsToDelete.push(removed.id);
+        renderCrewRows();
+      });
+
+      row.appendChild(nameInput);
+      row.appendChild(pinInput);
+      row.appendChild(codeInput);
+      row.appendChild(removeBtn);
+      crewListWrap.appendChild(row);
+    });
+  }
+  renderCrewRows();
+  wrap.appendChild(crewListWrap);
+
+  const addCrewBtn = document.createElement('button');
+  addCrewBtn.className = 'apply-btn';
+  addCrewBtn.style.marginTop = '4px';
+  addCrewBtn.style.marginBottom = '16px';
+  addCrewBtn.textContent = '+ Add Crew';
+  addCrewBtn.addEventListener('click', () => {
+    crews.push({ id: 'new_' + Date.now() + '_' + crews.length, name: '', pin: '', code: '' });
+    renderCrewRows();
+  });
+  wrap.appendChild(addCrewBtn);
+
   const saveBtn = document.createElement('button');
   saveBtn.className = 'save-btn';
   saveBtn.textContent = 'Save Prices';
@@ -1131,13 +1356,20 @@ function renderEditMode(){
     const newPin = (editPinDraft && editPinDraft !== adminPin) ? editPinDraft : undefined;
 
     try{
-      const res = await writePrices(adminPin, prices, newPin);
-      if(res && res.ok){
+      const [pricesRes, crewsRes] = await Promise.all([
+        writePrices(adminPin, prices, newPin),
+        writeCrews(adminPin, crews, crewsToDelete)
+      ]);
+      if(pricesRes && pricesRes.ok && crewsRes && crewsRes.ok){
         if(newPin) adminPin = newPin;
+        crewsToDelete = [];
+        const reload = await loadCrews();
+        if(reload && reload.ok) crews = reload.crews;
         status.textContent = 'Saved for everyone.';
       } else {
         status.style.color = '#c0392b';
-        status.textContent = (res && res.error) ? res.error : 'Save failed — please try again.';
+        const err = (pricesRes && pricesRes.error) || (crewsRes && crewsRes.error) || 'Save failed — please try again.';
+        status.textContent = err;
       }
     }catch(e){
       status.style.color = '#c0392b';
@@ -1195,7 +1427,7 @@ function selectType(type){
   } else {
     selectedType = type;
     // reset the other type's quantities so a stale selection can't sneak into a new entry
-    if(type === 'furniture'){ flattenAC().forEach(it => acQty[it.id] = 0); acAppliedCode = null; }
+    if(type === 'furniture'){ flattenAC().forEach(it => acQty[it.id] = 0); }
     if(type === 'ac'){ flattenFurniture().forEach(it => furnQty[it.id] = 0); furnBookingAction = null; }
   }
   document.getElementById('toggleFurniture').classList.toggle('active', selectedType === 'furniture');
@@ -1269,7 +1501,6 @@ document.getElementById('pinInput').addEventListener('keydown', (e) => {
 document.getElementById('clearBtn').addEventListener('click', () => {
   flattenFurniture().forEach(it => furnQty[it.id] = 0);
   flattenAC().forEach(it => acQty[it.id] = 0);
-  acAppliedCode = null;
   furnBookingAction = null;
   bookingRef = '';
   renderContent();
@@ -1278,6 +1509,7 @@ document.getElementById('clearBtn').addEventListener('click', () => {
 document.getElementById('confirmBtn').addEventListener('click', () => {
   const errorEl = document.getElementById('confirmError');
   errorEl.textContent = '';
+  if(!loggedInCrew){ errorEl.textContent = 'Log in with your crew name and PIN first.'; return; }
   if(!/^[A-Za-z0-9]{6}$/.test(bookingRef.trim())){
     errorEl.textContent = 'Enter a 6-character booking reference (letters/numbers only).';
     return;
@@ -1295,13 +1527,14 @@ document.getElementById('confirmBtn').addEventListener('click', () => {
       bookingRef: bookingRef.trim(),
       timestamp: new Date().toISOString(),
       bookingAction: furnBookingAction,
+      crewName: loggedInCrew.name,
+      crewCode: loggedInCrew.code || loggedInCrew.name,
       items: selected.map(it => ({ name: it.name, qty: furnQty[it.id], price: it.newPrice, lineTotal: furnQty[it.id]*it.newPrice })),
       subtotal: appTotal,
       discountPercent,
       finalTotal: newTotal
     };
   } else {
-    if(!acAppliedCode){ errorEl.textContent = 'Select your crew code first.'; return; }
     const selected = flattenAC().filter(it => acQty[it.id] > 0 && it.price);
     if(selected.length === 0){ errorEl.textContent = 'Select at least one item.'; return; }
     const {subtotal, finalTotal} = calcACTotals();
@@ -1309,10 +1542,12 @@ document.getElementById('confirmBtn').addEventListener('click', () => {
       type: 'ac',
       bookingRef: bookingRef.trim(),
       timestamp: new Date().toISOString(),
+      crewName: loggedInCrew.name,
+      crewCode: loggedInCrew.code || loggedInCrew.name,
       items: selected.map(it => ({ name: it.name, qty: acQty[it.id], price: it.price, lineTotal: acQty[it.id]*it.price, category: AC_ITEM_CATEGORY[it.id], stepper: !!it.stepper })),
       subtotal,
-      discountCode: acAppliedCode || null,
-      discountPercent: acAppliedCode ? AC_DISCOUNT_PERCENT : 0,
+      discountCode: loggedInCrew.code || loggedInCrew.name,
+      discountPercent: AC_DISCOUNT_PERCENT,
       finalTotal
     };
   }
@@ -1324,7 +1559,6 @@ document.getElementById('confirmBtn').addEventListener('click', () => {
 function resetEntryForm(){
   flattenFurniture().forEach(it => furnQty[it.id] = 0);
   flattenAC().forEach(it => acQty[it.id] = 0);
-  acAppliedCode = null;
   furnBookingAction = null;
   bookingRef = '';
   selectedType = null;
@@ -1350,21 +1584,24 @@ function buildAgentSummary(record){
   }
   lines.push(`Booking Ref: ${record.bookingRef}`);
   lines.push(`Service: ${record.type === 'ac' ? 'AC Cleaning' : 'Furniture Cleaning'}`);
-  if(record.type === 'ac' && record.discountCode){
-    lines.push(`Crew Code: ${record.discountCode}`);
+  if(record.crewCode){
+    lines.push(`Crew Code: ${record.crewCode}`);
   }
+  lines.push('');
   lines.push('Items to add on the app:');
   if(record.type === 'ac'){
     record.items.forEach(i => lines.push(`- ${acLineLabel(i)} — ${fmt(i.lineTotal)}`));
   } else {
     record.items.forEach(i => lines.push(`- ${i.qty}x ${i.name} — ${fmt(i.lineTotal)}`));
   }
+  lines.push('');
   lines.push(`Subtotal: ${fmt(record.subtotal)}`);
   if(record.discountPercent > 0){
     const discountAmt = record.subtotal - record.finalTotal;
     lines.push(`Discount: ${record.discountPercent}%${record.type === 'ac' ? ` (max AED ${AC_DISCOUNT_MAX_AED})` : ''} — ${fmt(discountAmt)} off`);
   }
   lines.push(`Final Total: ${fmt(record.finalTotal)}`);
+  lines.push('');
   lines.push(`Confirmed: ${d.toLocaleDateString()} ${d.toLocaleTimeString()}`);
   return lines.join('\n');
 }
@@ -1509,6 +1746,8 @@ async function submitLogEntry(record){
         timestamp: record.timestamp,
         bookingRef: record.bookingRef,
         type: record.type,
+        crewName: record.crewName || '',
+        crewCode: record.crewCode || '',
         items: record.items.map(i => `${i.qty}x ${i.name}`).join('; '),
         subtotal: record.subtotal,
         discountCode: record.discountCode || '',
@@ -1558,11 +1797,11 @@ function showEntrySuccess(panel, overlay, record, text, existingPre){
 }
 
 function exportLogCSV(){
-  let csv = 'Type,Booking Action,Booking Ref,Date,Time,Items,Subtotal (AED),Discount Code,Discount %,Final Total (AED)\n';
+  let csv = 'Type,Booking Action,Booking Ref,Date,Time,Crew,Items,Subtotal (AED),Discount Code,Discount %,Final Total (AED)\n';
   cachedLogEntries.forEach(r => {
     const d = new Date(r.timestamp);
     const actionLabel = r.bookingAction === 'update' ? 'Update Same Booking' : (r.bookingAction === 'new' ? 'Create New Booking' : '');
-    csv += `"${r.type}","${actionLabel}","${r.bookingRef}","${d.toLocaleDateString()}","${d.toLocaleTimeString()}","${r.items}","${r.subtotal}","${r.discountCode || ''}","${r.discountPercent || 0}","${r.finalTotal}"\n`;
+    csv += `"${r.type}","${actionLabel}","${r.bookingRef}","${d.toLocaleDateString()}","${d.toLocaleTimeString()}","${r.crewName || ''}","${r.items}","${r.subtotal}","${r.discountCode || ''}","${r.discountPercent || 0}","${r.finalTotal}"\n`;
   });
   const blob = new Blob([csv], {type:'text/csv'});
   const url = URL.createObjectURL(blob);
@@ -1619,6 +1858,7 @@ function showLogPanel(){
       }
       const actionLabel = r.bookingAction === 'update' ? 'Update Same Booking' : (r.bookingAction === 'new' ? 'Create New Booking' : '');
       const actionRow = actionLabel ? `<div class="log-entry-date">${actionLabel}</div>` : '';
+      const crewRow = r.crewName ? `<div class="log-entry-date">Crew: ${r.crewName}</div>` : '';
       entry.innerHTML = `
         <div class="log-entry-top">
           <span><span class="log-entry-type ${r.type === 'ac' ? 'ac' : ''}">${r.type === 'ac' ? 'AC' : 'Furniture'}</span>${r.bookingRef}</span>
@@ -1626,6 +1866,7 @@ function showLogPanel(){
         </div>
         <div class="log-entry-date">${d.toLocaleDateString()} · ${d.toLocaleTimeString()}</div>
         ${actionRow}
+        ${crewRow}
         <div class="log-entry-items">${r.items}</div>
         ${discRow}
       `;
